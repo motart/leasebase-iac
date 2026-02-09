@@ -159,3 +159,8 @@ output "subdomain_fqdn" {
   value       = module.leasebase.subdomain_fqdn
   description = "Dev subdomain FQDN"
 }
+
+output "github_actions_role_arn" {
+  value       = module.leasebase.github_actions_role_arn
+  description = "GitHub Actions deploy role ARN - use this in GitHub secrets as AWS_DEPLOY_ROLE_dev"
+}

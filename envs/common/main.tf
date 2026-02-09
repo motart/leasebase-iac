@@ -364,7 +364,9 @@ resource "aws_ecs_task_definition" "api" {
         },
         {
           name  = "COGNITO_CLIENT_ID"
-          value = aws_cognito_user_pool_client.api.id
+          # Use the web SPA client ID so tokens issued to the frontend have
+          # an audience that matches what the API expects.
+          value = aws_cognito_user_pool_client.web.id
         },
         # S3
         {

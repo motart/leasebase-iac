@@ -56,8 +56,9 @@ resource "aws_s3_bucket_cors_configuration" "documents" {
   }
 }
 
-# Lifecycle rules for cost optimization
+# Lifecycle rules for cost optimization (optional - can cause slow deployments)
 resource "aws_s3_bucket_lifecycle_configuration" "documents" {
+  count  = var.enable_s3_lifecycle ? 1 : 0
   bucket = aws_s3_bucket.documents.id
 
   rule {

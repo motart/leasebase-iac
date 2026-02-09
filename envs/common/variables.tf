@@ -133,6 +133,12 @@ variable "documents_cors_origins" {
   default     = ["*"]
 }
 
+variable "enable_s3_lifecycle" {
+  description = "Whether to enable S3 lifecycle rules (can be slow to create)."
+  type        = bool
+  default     = false
+}
+
 ############################
 # Stripe
 ############################
@@ -263,4 +269,32 @@ variable "domain_name" {
   description = "Base domain name (e.g., leasebase.co)."
   type        = string
   default     = "leasebase.co"
+}
+
+############################
+# GitHub OIDC / CI-CD
+############################
+
+variable "github_org" {
+  description = "GitHub organization name."
+  type        = string
+  default     = "leasebase-io"
+}
+
+variable "github_repo_api" {
+  description = "GitHub repository name for the API."
+  type        = string
+  default     = "leasebase"
+}
+
+variable "github_repo_web" {
+  description = "GitHub repository name for the web frontend."
+  type        = string
+  default     = "leasebase-web"
+}
+
+variable "github_branch_pattern" {
+  description = "Branch pattern allowed for deployments (supports wildcards)."
+  type        = string
+  default     = "*"
 }
