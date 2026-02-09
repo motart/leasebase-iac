@@ -54,7 +54,7 @@ resource "aws_lb_target_group" "web" {
 
 # ALB listener rule for web (default action - web serves the root)
 resource "aws_lb_listener_rule" "web" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.create_dns_record ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 100
 
   action {
@@ -74,7 +74,7 @@ resource "aws_lb_listener_rule" "web" {
 
 # ALB listener rule for API (higher priority)
 resource "aws_lb_listener_rule" "api" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = var.create_dns_record ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
   priority     = 10
 
   action {
@@ -84,7 +84,7 @@ resource "aws_lb_listener_rule" "api" {
 
   condition {
     path_pattern {
-      values = ["/api/*", "/docs", "/docs/*", "/healthz", "/readyz", "/stripe/*"]
+      values = ["/api/*", "/docs*", "/healthz", "/readyz", "/stripe/*"]
     }
   }
 }

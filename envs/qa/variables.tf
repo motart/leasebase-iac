@@ -237,3 +237,25 @@ variable "log_retention_days" {
   type        = number
   default     = 30
 }
+
+############################
+# Route 53 DNS
+############################
+
+variable "create_dns_record" {
+  description = "Whether to create Route 53 DNS record for QA subdomain."
+  type        = bool
+  default     = true
+}
+
+variable "route53_zone_id" {
+  description = "Route 53 hosted zone ID for leasebase.co domain."
+  type        = string
+  default     = "Z0031483TCJQERT4KG16"
+}
+
+variable "domain_name" {
+  description = "Base domain name."
+  type        = string
+  default     = "leasebase.co"
+}

@@ -124,3 +124,28 @@ output "api_migrate_task_definition_arn" {
   value       = module.leasebase.api_migrate_task_definition_arn
   description = "Prod API migration task definition ARN"
 }
+
+output "vpc_id" {
+  value       = module.leasebase.vpc_id
+  description = "Prod VPC ID"
+}
+
+output "public_subnet_ids" {
+  value       = module.leasebase.public_subnet_ids
+  description = "Prod public subnet IDs"
+}
+
+output "ecs_security_group_id" {
+  value       = module.leasebase.ecs_security_group_id
+  description = "Prod ECS security group ID"
+}
+
+output "api_service_name" {
+  value       = module.leasebase.api_service_name
+  description = "Prod API ECS service name"
+}
+
+output "web_service_name" {
+  value       = module.leasebase.web_service_name
+  description = "Prod web ECS service name"
+}

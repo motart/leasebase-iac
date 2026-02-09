@@ -74,6 +74,11 @@ module "leasebase" {
 
   # Logging
   log_retention_days = var.log_retention_days
+
+  # Route 53 DNS
+  create_dns_record = var.create_dns_record
+  route53_zone_id   = var.route53_zone_id
+  domain_name       = var.domain_name
 }
 
 ############################
@@ -123,4 +128,34 @@ output "ecs_cluster_name" {
 output "api_migrate_task_definition_arn" {
   value       = module.leasebase.api_migrate_task_definition_arn
   description = "QA API migration task definition ARN"
+}
+
+output "vpc_id" {
+  value       = module.leasebase.vpc_id
+  description = "QA VPC ID"
+}
+
+output "public_subnet_ids" {
+  value       = module.leasebase.public_subnet_ids
+  description = "QA public subnet IDs"
+}
+
+output "ecs_security_group_id" {
+  value       = module.leasebase.ecs_security_group_id
+  description = "QA ECS security group ID"
+}
+
+output "api_service_name" {
+  value       = module.leasebase.api_service_name
+  description = "QA API ECS service name"
+}
+
+output "web_service_name" {
+  value       = module.leasebase.web_service_name
+  description = "QA web ECS service name"
+}
+
+output "subdomain_fqdn" {
+  value       = module.leasebase.subdomain_fqdn
+  description = "QA subdomain FQDN"
 }

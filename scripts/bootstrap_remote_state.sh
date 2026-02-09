@@ -43,12 +43,21 @@ TABLE_NAME="terraform-locks-${ENV_NAME}"
 echo "Using account: $ACCOUNT_ID"
 echo "Creating/validating S3 bucket: $BUCKET_NAME in $REGION"
 
-aws s3api create-bucket \
-  --profile "$PROFILE" \
-  --bucket "$BUCKET_NAME" \
-  --region "$REGION" \
-  --create-bucket-configuration LocationConstraint="$REGION" \
-  >/dev/null 2>&1 || echo "Bucket may already exist, continuing..."
+# us-east-1 doesn't support LocationConstraint
+if [[ "$REGION" == "us-east-1" ]]; then
+  aws s3api create-bucket \
+    --profile "$PROFILE" \
+    --bucket "$BUCKET_NAME" \
+    --region "$REGION" \
+    2>/dev/null || echo "Bucket may already exist, continuing..."
+else
+  aws s3api create-bucket \
+    --profile "$PROFILE" \
+    --bucket "$BUCKET_NAME" \
+    --region "$REGION" \
+    --create-bucket-configuration LocationConstraint="$REGION" \
+    2>/dev/null || echo "Bucket may already exist, continuing..."
+fi
 
 aws s3api put-bucket-versioning \
   --profile "$PROFILE" \
@@ -68,7 +77,7 @@ if ! aws dynamodb describe-table --profile "$PROFILE" --table-name "$TABLE_NAME"
     --table-name "$TABLE_NAME" \
     --attribute-definitions AttributeName=LockID,AttributeType=S \
     --key-schema AttributeName=LockID,KeyType=HASH \
-    --billing-mode PAYPERREQUEST
+    --billing-mode PAY_PER_REQUEST
   echo "Waiting for DynamoDB table to become ACTIVE..."
   aws dynamodb wait table-exists --profile "$PROFILE" --table-name "$TABLE_NAME"
 fi

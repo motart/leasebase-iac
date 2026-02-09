@@ -96,6 +96,14 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "HTTPS from anywhere"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -240,12 +248,32 @@ resource "aws_lb_target_group" "api" {
   }
 }
 
+# HTTP listener - redirects all traffic to HTTPS
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.api.arn
   port              = 80
   protocol          = "HTTP"
 
-  # Default action returns 404; actual routing is done via listener rules
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+# HTTPS listener - actual routing is done via listener rules
+resource "aws_lb_listener" "https" {
+  count             = var.create_dns_record ? 1 : 0
+  load_balancer_arn = aws_lb.api.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate_validation.subdomain[0].certificate_arn
+
+  # Default action returns 404
   default_action {
     type = "fixed-response"
     fixed_response {

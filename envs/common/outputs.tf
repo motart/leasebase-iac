@@ -151,3 +151,17 @@ output "app_secrets_arn" {
   description = "ARN of the application secrets."
   value       = aws_secretsmanager_secret.app_secrets.arn
 }
+
+############################
+# Route 53
+############################
+
+output "subdomain_fqdn" {
+  description = "Fully qualified domain name for the environment subdomain."
+  value       = var.create_dns_record ? "${var.environment}.${var.domain_name}" : ""
+}
+
+output "certificate_arn" {
+  description = "ARN of the ACM certificate for HTTPS."
+  value       = var.create_dns_record ? aws_acm_certificate.subdomain[0].arn : ""
+}

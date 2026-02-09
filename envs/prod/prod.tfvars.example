@@ -1,0 +1,99 @@
+# Leasebase Production Environment - Terraform Variables
+# Copy this file to prod.tfvars and fill in the values.
+# NEVER commit prod.tfvars with real secrets to version control.
+#
+# IMPORTANT: Production deployments should use proper secret management.
+# Consider using AWS Secrets Manager references or environment variables
+# instead of hardcoding secrets in this file.
+
+############################
+# AWS
+############################
+aws_region = "us-east-1"
+vpc_cidr   = "10.30.0.0/16"
+
+############################
+# Database
+############################
+db_name                = "leasebase_prod"
+db_username            = "leasebase"
+db_password            = "CHANGE_ME_use_strong_password"
+db_engine_version      = "16.0"
+db_instance_class      = "db.t3.medium"
+db_allocated_storage   = 100
+db_deletion_protection = true  # CRITICAL: Keep this true in production!
+
+############################
+# API / ECS
+############################
+api_port             = 4000
+api_healthcheck_path = "/healthz"
+api_container_image  = "leasebase-prod-api:latest"
+ecs_task_cpu         = "1024"
+ecs_task_memory      = "2048"
+ecs_desired_count    = 3
+
+############################
+# Cognito
+############################
+cognito_domain_suffix = "prod-123456789012"
+
+cognito_callback_urls = [
+  "https://leasebase.io/auth/callback",
+  "https://www.leasebase.io/auth/callback"
+]
+cognito_logout_urls = [
+  "https://leasebase.io/login",
+  "https://www.leasebase.io/login"
+]
+cognito_advanced_security_mode = "ENFORCED"
+
+############################
+# Document Storage
+############################
+documents_bucket_suffix = "prod-123456789012"
+documents_cors_origins = [
+  "https://leasebase.io",
+  "https://www.leasebase.io"
+]
+
+############################
+# Stripe
+############################
+# PRODUCTION KEYS - Handle with extreme care!
+stripe_secret_key      = "sk_live_CHANGE_ME"
+stripe_publishable_key = "pk_live_CHANGE_ME"
+stripe_webhook_secret  = "whsec_CHANGE_ME"
+
+############################
+# Application Secrets
+############################
+jwt_secret     = "CHANGE_ME_generate_cryptographically_secure_string"
+session_secret = "CHANGE_ME_generate_cryptographically_secure_string"
+
+############################
+# Email (SES)
+############################
+ses_from_email = "noreply@leasebase.io"
+
+############################
+# Web Frontend (ECS)
+############################
+web_container_image = "leasebase-prod-web:latest"
+web_port            = 3000
+web_task_cpu        = "512"
+web_task_memory     = "1024"
+web_desired_count   = 3
+
+web_api_base_url = "https://api.leasebase.io"
+
+############################
+# Application URLs
+############################
+api_base_url = "https://api.leasebase.io"
+web_base_url = "https://leasebase.io"
+
+############################
+# Logging
+############################
+log_retention_days = 90

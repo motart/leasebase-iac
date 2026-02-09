@@ -1,92 +1,92 @@
 variable "aws_region" {
-  description = "AWS region for the dev account."
+  description = "AWS region for the UAT account."
   type        = string
   default     = "us-east-1"
 }
 
 variable "vpc_cidr" {
-  description = "VPC CIDR for dev."
+  description = "VPC CIDR for UAT."
   type        = string
-  default     = "10.10.0.0/16"
+  default     = "10.30.0.0/16"
 }
 
 # Database
 variable "db_name" {
-  description = "Database name for dev."
+  description = "Database name for UAT."
   type        = string
-  default     = "leasebase_dev"
+  default     = "leasebase_uat"
 }
 
 variable "db_username" {
-  description = "Database username for dev."
+  description = "Database username for UAT."
   type        = string
   default     = "leasebase"
 }
 
 variable "db_password" {
-  description = "Database password for dev (set via tfvars, do not commit real values)."
+  description = "Database password for UAT (set via tfvars, do not commit real values)."
   type        = string
   sensitive   = true
 }
 
 variable "db_engine_version" {
-  description = "Postgres engine version for dev."
+  description = "Postgres engine version for UAT."
   type        = string
   default     = "16.0"
 }
 
 variable "db_instance_class" {
-  description = "RDS instance class for dev."
+  description = "RDS instance class for UAT."
   type        = string
-  default     = "db.t3.micro"
+  default     = "db.t3.small"
 }
 
 variable "db_allocated_storage" {
-  description = "RDS storage (GB) for dev."
+  description = "RDS storage (GB) for UAT."
   type        = number
-  default     = 20
+  default     = 50
 }
 
 variable "db_deletion_protection" {
-  description = "Enable deletion protection (usually false for dev)."
+  description = "Enable deletion protection (usually true for UAT)."
   type        = bool
-  default     = false
+  default     = true
 }
 
 # API / ECS
 variable "api_port" {
-  description = "API port for dev."
+  description = "API port for UAT."
   type        = number
   default     = 4000
 }
 
 variable "api_healthcheck_path" {
-  description = "Health check path for dev API."
+  description = "Health check path for UAT API."
   type        = string
   default     = "/docs"
 }
 
 variable "api_container_image" {
-  description = "ECR image URI (or other registry) for dev API."
+  description = "ECR image URI (or other registry) for UAT API."
   type        = string
 }
 
 variable "ecs_task_cpu" {
-  description = "CPU units for dev API task."
+  description = "CPU units for UAT API task."
   type        = string
   default     = "512"
 }
 
 variable "ecs_task_memory" {
-  description = "Memory for dev API task."
+  description = "Memory for UAT API task."
   type        = string
   default     = "1024"
 }
 
 variable "ecs_desired_count" {
-  description = "Number of dev API tasks."
+  description = "Number of UAT API tasks."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 ############################
@@ -101,19 +101,17 @@ variable "cognito_domain_suffix" {
 variable "cognito_callback_urls" {
   description = "OAuth callback URLs for the web app."
   type        = list(string)
-  default     = ["http://localhost:3000/auth/callback"]
 }
 
 variable "cognito_logout_urls" {
   description = "OAuth logout URLs for the web app."
   type        = list(string)
-  default     = ["http://localhost:3000/login"]
 }
 
 variable "cognito_advanced_security_mode" {
   description = "Advanced security mode for Cognito. Values: OFF, AUDIT, ENFORCED."
   type        = string
-  default     = "OFF"
+  default     = "AUDIT"
 }
 
 ############################
@@ -128,7 +126,6 @@ variable "documents_bucket_suffix" {
 variable "documents_cors_origins" {
   description = "Allowed origins for CORS on the documents bucket."
   type        = list(string)
-  default     = ["*"]
 }
 
 ############################
@@ -184,7 +181,7 @@ variable "ses_from_email" {
 ############################
 
 variable "web_container_image" {
-  description = "Container image for the dev web frontend."
+  description = "Container image for the UAT web frontend."
   type        = string
 }
 
@@ -207,9 +204,9 @@ variable "web_task_memory" {
 }
 
 variable "web_desired_count" {
-  description = "Desired task count for the dev web service."
+  description = "Desired task count for the UAT web service."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "web_api_base_url" {
@@ -238,7 +235,7 @@ variable "web_base_url" {
 variable "log_retention_days" {
   description = "CloudWatch log retention in days."
   type        = number
-  default     = 14
+  default     = 30
 }
 
 ############################
@@ -246,7 +243,7 @@ variable "log_retention_days" {
 ############################
 
 variable "create_dns_record" {
-  description = "Whether to create Route 53 DNS record for dev subdomain."
+  description = "Whether to create Route 53 DNS record for UAT subdomain."
   type        = bool
   default     = true
 }
