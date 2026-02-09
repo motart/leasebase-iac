@@ -32,6 +32,23 @@ resource "aws_cognito_user_pool" "main" {
     email_sending_account = "COGNITO_DEFAULT"
   }
 
+  # Verification message template so users know Leasebase is requesting verification
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = "Verify your email for Leasebase"
+    email_message        = <<EOT
+Welcome to Leasebase!
+
+Your email address was used to create an account in the Leasebase web application.
+
+Your Leasebase verification code is: {####}
+
+Enter this code in the Leasebase app to finish setting up your account.
+
+If you did not request this, you can safely ignore this email.
+EOT
+  }
+
   # Schema attributes
   schema {
     name                     = "email"
@@ -142,12 +159,16 @@ resource "aws_cognito_user_pool_client" "web" {
   read_attributes = [
     "email",
     "email_verified",
+    "given_name",
+    "family_name",
     "custom:orgId",
     "custom:role"
   ]
 
   write_attributes = [
     "email",
+    "given_name",
+    "family_name",
     "custom:orgId",
     "custom:role"
   ]
