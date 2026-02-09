@@ -191,9 +191,9 @@ resource "aws_db_instance" "this" {
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
-  publicly_accessible    = false
-  skip_final_snapshot    = true
-  deletion_protection    = var.db_deletion_protection
+  publicly_accessible = false
+  skip_final_snapshot = true
+  deletion_protection = var.db_deletion_protection
 
   tags = {
     Name        = "${local.name_prefix}-postgres"
@@ -219,10 +219,11 @@ resource "aws_lb" "api" {
 }
 
 resource "aws_lb_target_group" "api" {
-  name     = "${local.name_prefix}-tg"
-  port     = var.api_port
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.this.id
+  name        = "${local.name_prefix}-api-tg"
+  port        = var.api_port
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.this.id
+  target_type = "ip"
 
   health_check {
     path                = var.api_healthcheck_path
@@ -234,7 +235,7 @@ resource "aws_lb_target_group" "api" {
   }
 
   tags = {
-    Name        = "${local.name_prefix}-tg"
+    Name        = "${local.name_prefix}-api-tg"
     Environment = var.environment
   }
 }
@@ -244,9 +245,14 @@ resource "aws_lb_listener" "http" {
   port              = 80
   protocol          = "HTTP"
 
+  # Default action returns 404; actual routing is done via listener rules
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.api.arn
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not Found"
+      status_code  = "404"
+    }
   }
 }
 
@@ -290,25 +296,112 @@ resource "aws_ecs_task_definition" "api" {
   cpu                      = var.ecs_task_cpu
   memory                   = var.ecs_task_memory
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([
     {
       name      = "api"
       image     = var.api_container_image
       essential = true
+
       portMappings = [{
         containerPort = var.api_port
         hostPort      = var.api_port
         protocol      = "tcp"
       }]
+
       environment = [
+        # Database
         {
           name  = "DATABASE_URL"
-          value = var.api_database_url
+          value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.this.endpoint}/${var.db_name}?schema=public"
+        },
+        # Server
+        {
+          name  = "NODE_ENV"
+          value = var.environment == "prod" ? "production" : "development"
+        },
+        {
+          name  = "PORT"
+          value = tostring(var.api_port)
+        },
+        # Cognito
+        {
+          name  = "COGNITO_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "COGNITO_USER_POOL_ID"
+          value = aws_cognito_user_pool.main.id
+        },
+        {
+          name  = "COGNITO_CLIENT_ID"
+          value = aws_cognito_user_pool_client.api.id
+        },
+        # S3
+        {
+          name  = "S3_BUCKET_NAME"
+          value = aws_s3_bucket.documents.bucket
+        },
+        {
+          name  = "S3_REGION"
+          value = var.aws_region
+        },
+        # SES
+        {
+          name  = "SES_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "SES_FROM_EMAIL"
+          value = var.ses_from_email
+        },
+        # Stripe (from Secrets Manager via env)
+        {
+          name  = "STRIPE_SECRET_KEY"
+          value = var.stripe_secret_key
+        },
+        {
+          name  = "STRIPE_WEBHOOK_SECRET"
+          value = var.stripe_webhook_secret
+        },
+        # App URLs
+        {
+          name  = "API_BASE_URL"
+          value = var.api_base_url
+        },
+        {
+          name  = "WEB_BASE_URL"
+          value = var.web_base_url
         }
       ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.api.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "api"
+        }
+      }
     }
   ])
+
+  tags = {
+    Name        = "${local.name_prefix}-api-task"
+    Environment = var.environment
+  }
+}
+
+# CloudWatch log group for API
+resource "aws_cloudwatch_log_group" "api" {
+  name              = "/ecs/${local.name_prefix}-api"
+  retention_in_days = var.log_retention_days
+
+  tags = {
+    Name        = "${local.name_prefix}-api-logs"
+    Environment = var.environment
+  }
 }
 
 resource "aws_ecs_service" "api" {
@@ -319,8 +412,8 @@ resource "aws_ecs_service" "api" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = aws_subnet.public[*].id
-    security_groups = [aws_security_group.ecs_service.id]
+    subnets          = aws_subnet.public[*].id
+    security_groups  = [aws_security_group.ecs_service.id]
     assign_public_ip = true
   }
 
@@ -338,103 +431,46 @@ resource "aws_ecs_service" "api" {
 }
 
 ############################
-# Web client: S3 + CloudFront
+# Prisma Migration Task (one-off task for DB migrations)
 ############################
 
-resource "aws_s3_bucket" "web" {
-  bucket = "${local.name_prefix}-${var.web_bucket_suffix}"
+resource "aws_ecs_task_definition" "api_migrate" {
+  family                   = "${local.name_prefix}-api-migrate"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ecs_task_cpu
+  memory                   = var.ecs_task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
 
-  tags = {
-    Name        = "${local.name_prefix}-web-bucket"
-    Environment = var.environment
-  }
-}
+  container_definitions = jsonencode([
+    {
+      name      = "migrate"
+      image     = var.api_container_image
+      essential = true
 
-resource "aws_s3_bucket_website_configuration" "web" {
-  bucket = aws_s3_bucket.web.id
+      command = ["npx", "prisma", "migrate", "deploy"]
 
-  index_document {
-    suffix = var.web_index_document
-  }
+      environment = [
+        {
+          name  = "DATABASE_URL"
+          value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.this.endpoint}/${var.db_name}?schema=public"
+        }
+      ]
 
-  error_document {
-    key = var.web_error_document
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "web" {
-  bucket = aws_s3_bucket.web.id
-
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
-}
-
-resource "aws_s3_bucket_policy" "web" {
-  bucket = aws_s3_bucket.web.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = "*"
-      Action   = ["s3:GetObject"]
-      Resource = ["${aws_s3_bucket.web.arn}/*"]
-    }]
-  })
-}
-
-resource "aws_cloudfront_origin_access_identity" "web" {
-  comment = "Access identity for ${local.name_prefix}-web"
-}
-
-resource "aws_cloudfront_distribution" "web" {
-  enabled             = true
-  is_ipv6_enabled     = true
-  comment             = "Leasebase web frontend (${var.environment})"
-  default_root_object = var.web_index_document
-
-  origin {
-    domain_name = aws_s3_bucket.web.bucket_regional_domain_name
-    origin_id   = "s3-web-origin"
-
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.web.cloudfront_access_identity_path
-    }
-  }
-
-  default_cache_behavior {
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "s3-web-origin"
-
-    forwarded_values {
-      query_string = false
-
-      cookies {
-        forward = "none"
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.api.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "migrate"
+        }
       }
     }
-
-    viewer_protocol_policy = "redirect-to-https"
-    min_ttl                = 0
-    default_ttl            = 3600
-    max_ttl                = 86400
-  }
-
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-    }
-  }
-
-  viewer_certificate {
-    cloudfront_default_certificate = true
-  }
+  ])
 
   tags = {
-    Name        = "${local.name_prefix}-web-cf"
+    Name        = "${local.name_prefix}-api-migrate"
     Environment = var.environment
   }
 }

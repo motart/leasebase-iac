@@ -1,0 +1,7 @@
+# Terraform local state and providers
+.terraform/
+
+# Terraform variable files (if needed)
+*.tfvars
+*.tfstate
+*.tfstate.*

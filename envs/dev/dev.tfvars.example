@@ -1,0 +1,104 @@
+# Leasebase Dev Environment - Terraform Variables
+# Copy this file to dev.tfvars and fill in the values.
+# NEVER commit dev.tfvars with real secrets to version control.
+
+############################
+# AWS
+############################
+aws_region = "us-east-1"
+vpc_cidr   = "10.10.0.0/16"
+
+############################
+# Database
+############################
+db_name                = "leasebase_dev"
+db_username            = "leasebase"
+db_password            = "CHANGE_ME_secure_password_here"
+db_engine_version      = "16.0"
+db_instance_class      = "db.t3.micro"
+db_allocated_storage   = 20
+db_deletion_protection = false
+
+############################
+# API / ECS
+############################
+api_port             = 4000
+api_healthcheck_path = "/healthz"
+# Use ECR URL after first apply, e.g.: <account-id>.dkr.ecr.us-east-1.amazonaws.com/leasebase-dev-api:latest
+api_container_image  = "leasebase-dev-api:latest"
+ecs_task_cpu         = "512"
+ecs_task_memory      = "1024"
+ecs_desired_count    = 1
+
+############################
+# Cognito
+############################
+# Must be globally unique - suggest using account ID or random suffix
+cognito_domain_suffix = "dev-123456789012"
+
+# Update these with your actual domain when deploying
+cognito_callback_urls = [
+  "http://localhost:3000/auth/callback",
+  "https://dev.leasebase.io/auth/callback"
+]
+cognito_logout_urls = [
+  "http://localhost:3000/login",
+  "https://dev.leasebase.io/login"
+]
+cognito_advanced_security_mode = "OFF"
+
+############################
+# Document Storage
+############################
+# Must be globally unique - suggest using account ID
+documents_bucket_suffix = "dev-123456789012"
+documents_cors_origins = [
+  "http://localhost:3000",
+  "https://dev.leasebase.io"
+]
+
+############################
+# Stripe
+############################
+# Get these from your Stripe dashboard (use test mode keys for dev)
+stripe_secret_key      = "sk_test_CHANGE_ME"
+stripe_publishable_key = "pk_test_CHANGE_ME"
+stripe_webhook_secret  = "whsec_CHANGE_ME"
+
+############################
+# Application Secrets
+############################
+# Generate secure random strings for these
+jwt_secret     = "CHANGE_ME_generate_secure_random_string"
+session_secret = "CHANGE_ME_generate_secure_random_string"
+
+############################
+# Email (SES)
+############################
+# Must be a verified email in SES (or verified domain)
+ses_from_email = "noreply@leasebase.io"
+
+############################
+# Web Frontend (ECS)
+############################
+# Use ECR URL after first apply, e.g.: <account-id>.dkr.ecr.us-east-1.amazonaws.com/leasebase-dev-web:latest
+web_container_image = "leasebase-dev-web:latest"
+web_port            = 3000
+web_task_cpu        = "256"
+web_task_memory     = "512"
+web_desired_count   = 1
+
+# API URL the frontend calls (ALB DNS or custom domain)
+web_api_base_url = "http://leasebase-dev-alb-XXXXX.us-east-1.elb.amazonaws.com"
+
+############################
+# Application URLs
+############################
+# Update these with actual ALB DNS or custom domain after first apply
+api_base_url = "http://leasebase-dev-alb-XXXXX.us-east-1.elb.amazonaws.com"
+web_base_url = "http://leasebase-dev-alb-XXXXX.us-east-1.elb.amazonaws.com"
+
+############################
+# Logging
+############################
+log_retention_days = 14

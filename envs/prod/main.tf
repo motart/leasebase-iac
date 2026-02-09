@@ -17,37 +17,110 @@ provider "aws" {
 module "leasebase" {
   source = "../common"
 
-  environment       = "prod"
-  aws_region        = var.aws_region
-  vpc_cidr          = var.vpc_cidr
+  environment = "prod"
+  aws_region  = var.aws_region
+  vpc_cidr    = var.vpc_cidr
 
-  db_name               = var.db_name
-  db_username           = var.db_username
-  db_password           = var.db_password
-  db_engine_version     = var.db_engine_version
-  db_instance_class     = var.db_instance_class
-  db_allocated_storage  = var.db_allocated_storage
+  # Database
+  db_name                = var.db_name
+  db_username            = var.db_username
+  db_password            = var.db_password
+  db_engine_version      = var.db_engine_version
+  db_instance_class      = var.db_instance_class
+  db_allocated_storage   = var.db_allocated_storage
   db_deletion_protection = var.db_deletion_protection
 
+  # API / ECS
   api_port             = var.api_port
   api_healthcheck_path = var.api_healthcheck_path
   api_container_image  = var.api_container_image
-  api_database_url     = var.api_database_url
   ecs_task_cpu         = var.ecs_task_cpu
   ecs_task_memory      = var.ecs_task_memory
   ecs_desired_count    = var.ecs_desired_count
 
-  web_bucket_suffix   = var.web_bucket_suffix
-  web_index_document  = var.web_index_document
-  web_error_document  = var.web_error_document
+  # Cognito
+  cognito_domain_suffix          = var.cognito_domain_suffix
+  cognito_callback_urls          = var.cognito_callback_urls
+  cognito_logout_urls            = var.cognito_logout_urls
+  cognito_advanced_security_mode = var.cognito_advanced_security_mode
+
+  # Document Storage
+  documents_bucket_suffix = var.documents_bucket_suffix
+  documents_cors_origins  = var.documents_cors_origins
+
+  # Stripe
+  stripe_secret_key      = var.stripe_secret_key
+  stripe_publishable_key = var.stripe_publishable_key
+  stripe_webhook_secret  = var.stripe_webhook_secret
+
+  # Application Secrets
+  jwt_secret     = var.jwt_secret
+  session_secret = var.session_secret
+
+  # Email (SES)
+  ses_from_email = var.ses_from_email
+
+  # Web Frontend
+  web_container_image = var.web_container_image
+  web_port            = var.web_port
+  web_task_cpu        = var.web_task_cpu
+  web_task_memory     = var.web_task_memory
+  web_desired_count   = var.web_desired_count
+  web_api_base_url    = var.web_api_base_url
+
+  # Application URLs
+  api_base_url = var.api_base_url
+  web_base_url = var.web_base_url
+
+  # Logging
+  log_retention_days = var.log_retention_days
 }
 
-output "api_alb_dns_name" {
-  value       = module.leasebase.api_alb_dns_name
-  description = "Prod API ALB DNS name"
+############################
+# Outputs
+############################
+
+output "alb_dns_name" {
+  value       = module.leasebase.alb_dns_name
+  description = "Prod ALB DNS name"
 }
 
-output "web_cloudfront_domain" {
-  value       = module.leasebase.web_cloudfront_domain
-  description = "Prod web CloudFront domain"
+output "ecr_api_repository_url" {
+  value       = module.leasebase.ecr_api_repository_url
+  description = "Prod API ECR repository URL"
+}
+
+output "ecr_web_repository_url" {
+  value       = module.leasebase.ecr_web_repository_url
+  description = "Prod web ECR repository URL"
+}
+
+output "cognito_user_pool_id" {
+  value       = module.leasebase.cognito_user_pool_id
+  description = "Prod Cognito User Pool ID"
+}
+
+output "cognito_web_client_id" {
+  value       = module.leasebase.cognito_web_client_id
+  description = "Prod Cognito web client ID"
+}
+
+output "cognito_domain" {
+  value       = module.leasebase.cognito_domain
+  description = "Prod Cognito domain"
+}
+
+output "documents_bucket_name" {
+  value       = module.leasebase.documents_bucket_name
+  description = "Prod documents S3 bucket name"
+}
+
+output "ecs_cluster_name" {
+  value       = module.leasebase.ecs_cluster_name
+  description = "Prod ECS cluster name"
+}
+
+output "api_migrate_task_definition_arn" {
+  value       = module.leasebase.api_migrate_task_definition_arn
+  description = "Prod API migration task definition ARN"
 }
