@@ -4,4 +4,5 @@
 # Terraform variable files (if needed)
 *.tfvars
 *.tfstate
-*.tfstate.*
+*.tfstate.**.plan
+*.tfplan
