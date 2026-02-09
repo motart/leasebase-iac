@@ -3,9 +3,9 @@
 
 terraform {
   backend "s3" {
-    bucket         = "leasebase-tfstate-dev-335021149718"
+    bucket         = "leasebase-tfstate-dev-335021149718-v2"
     key            = "envs/dev/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "us-west-1"
     dynamodb_table = "terraform-locks-dev"
     encrypt        = true
   }

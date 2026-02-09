@@ -20,7 +20,7 @@ set -euo pipefail
 
 PROFILE=""
 ENV_NAME=""
-REGION="us-east-1"
+REGION="us-west-1"
 SKIP_BOOTSTRAP=false
 SKIP_BUILD=false
 SKIP_MIGRATE=false
@@ -78,7 +78,7 @@ if [[ -z "$PROFILE" || -z "$ENV_NAME" ]]; then
   echo "Options:"
   echo "  --profile       AWS profile to use (required)"
   echo "  --env           Environment to deploy: dev, qa, or prod (required)"
-  echo "  --region        AWS region (default: us-east-1)"
+  echo "  --region        AWS region (default: us-west-1)"
   echo "  --tag           Docker image tag (default: latest)"
   echo "  --skip-bootstrap  Skip remote state bootstrap"
   echo "  --skip-build    Skip Docker image build"

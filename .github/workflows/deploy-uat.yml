@@ -1,0 +1,56 @@
+name: Deploy UAT
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || 'us-west-2' }}
+
+jobs:
+  deploy-uat:
+    runs-on: ubuntu-latest
+    environment: uat
+    steps:
+      - name: Checkout IaC repo
+        uses: actions/checkout@v4
+        with:
+          path: leasebase-iac
+
+      - name: Checkout backend repo
+        uses: actions/checkout@v4
+        with:
+          repository: motart/leasebase
+          path: leasebase
+
+      - name: Checkout web repo
+        uses: actions/checkout@v4
+        with:
+          repository: motart/leasebase-web
+          path: leasebase-web
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_UAT_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Deploy UAT environment
+        working-directory: leasebase-iac
+        run: |
+          chmod +x scripts/*.sh
+          scripts/deploy-all.sh \
+            --profile ci \
+            --env uat \
+            --region "${AWS_REGION}" \
+            --tag "${GITHUB_SHA}" \
+            --auto-approve

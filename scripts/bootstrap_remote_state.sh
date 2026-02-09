@@ -43,7 +43,7 @@ TABLE_NAME="terraform-locks-${ENV_NAME}"
 echo "Using account: $ACCOUNT_ID"
 echo "Creating/validating S3 bucket: $BUCKET_NAME in $REGION"
 
-# us-east-1 doesn't support LocationConstraint
+# Only us-east-1 doesn't require LocationConstraint
 if [[ "$REGION" == "us-east-1" ]]; then
   aws s3api create-bucket \
     --profile "$PROFILE" \

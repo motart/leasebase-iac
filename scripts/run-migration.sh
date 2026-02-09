@@ -11,7 +11,7 @@ set -euo pipefail
 
 PROFILE=""
 ENV_NAME=""
-REGION="us-east-1"
+REGION="us-west-1"
 WAIT=true
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

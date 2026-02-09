@@ -6,13 +6,13 @@ set -euo pipefail
 # Usage:
 #   scripts/build-and-push.sh \
 #     --profile iamadmin-master \
-#     --region us-east-1 \
+#     --region us-west-1 \
 #     --env dev \
 #     [--api-only | --web-only] \
 #     [--tag latest]
 
 PROFILE=""
-REGION="us-east-1"
+REGION="us-west-1"
 ENV_NAME=""
 TAG="latest"
 BUILD_API=true

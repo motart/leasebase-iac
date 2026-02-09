@@ -5,7 +5,7 @@
 ############################
 # AWS
 ############################
-aws_region = "us-east-1"
+aws_region = "us-west-1"
 vpc_cidr   = "10.10.0.0/16"
 
 ############################
@@ -24,7 +24,7 @@ db_deletion_protection = false
 ############################
 api_port             = 4000
 api_healthcheck_path = "/healthz"
-# Use ECR URL after first apply, e.g.: <account-id>.dkr.ecr.us-east-1.amazonaws.com/leasebase-dev-api:latest
+# Use ECR URL after first apply, e.g.: <account-id>.dkr.ecr.us-west-1.amazonaws.com/leasebase-dev-api:latest
 api_container_image  = "leasebase-dev-api:latest"
 ecs_task_cpu         = "512"
 ecs_task_memory      = "1024"
@@ -81,7 +81,7 @@ ses_from_email = "noreply@leasebase.io"
 ############################
 # Web Frontend (ECS)
 ############################
-# Use ECR URL after first apply, e.g.: <account-id>.dkr.ecr.us-east-1.amazonaws.com/leasebase-dev-web:latest
+# Use ECR URL after first apply, e.g.: <account-id>.dkr.ecr.us-west-1.amazonaws.com/leasebase-dev-web:latest
 web_container_image = "leasebase-dev-web:latest"
 web_port            = 3000
 web_task_cpu        = "256"
@@ -89,14 +89,14 @@ web_task_memory     = "512"
 web_desired_count   = 1
 
 # API URL the frontend calls (ALB DNS or custom domain)
-web_api_base_url = "http://leasebase-dev-alb-XXXXX.us-east-1.elb.amazonaws.com"
+web_api_base_url = "http://leasebase-dev-alb-XXXXX.us-west-1.elb.amazonaws.com"
 
 ############################
 # Application URLs
 ############################
 # Update these with actual ALB DNS or custom domain after first apply
-api_base_url = "http://leasebase-dev-alb-XXXXX.us-east-1.elb.amazonaws.com"
-web_base_url = "http://leasebase-dev-alb-XXXXX.us-east-1.elb.amazonaws.com"
+api_base_url = "http://leasebase-dev-alb-XXXXX.us-west-1.elb.amazonaws.com"
+web_base_url = "http://leasebase-dev-alb-XXXXX.us-west-1.elb.amazonaws.com"
 
 ############################
 # Logging
