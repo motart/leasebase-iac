@@ -10,6 +10,7 @@ permissions:
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || 'us-west-2' }}
+  AWS_DEV_ROLE_ARN: ${{ vars.AWS_DEV_ROLE_ARN != '' && vars.AWS_DEV_ROLE_ARN || secrets.AWS_DEV_ROLE_ARN }}
 
 jobs:
   deploy-dev:
@@ -36,7 +37,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_DEV_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_DEV_ROLE_ARN }}
+          role-session-name: leasebase-dev-ci
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
