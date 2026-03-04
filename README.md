@@ -229,6 +229,68 @@ Required GitHub environment variable: `AWS_ROLE_ARN` (on the `dev` environment)
 - [Register Jira Webhook](automation/docs/register-jira-webhook.md)
 - [GitHub Secrets Setup](automation/docs/github-secrets-setup.md)
 - [Troubleshooting](automation/docs/troubleshooting.md)
+## Seeding Demo Data
+
+After deployment, populate realistic sample data for testing:
+
+### Prerequisites
+
+- Node.js 20+
+- AWS credentials configured
+- Network access to database (or use SSM tunneling)
+
+### Install & Build
+
+```bash
+cd automation/seed
+npm install
+npm run build
+```
+
+### Run Seeder
+
+```bash
+# Seed dev environment (default)
+npm run seed
+
+# Seed specific environment
+npm run seed -- --env qa
+
+# Use explicit database URL
+DATABASE_URL="postgresql://user:pass@host:5432/leasebase" npm run seed
+
+# Seed only specific services
+npm run seed -- --only property_service,tenant_service,lease_service
+```
+
+### What Gets Seeded
+
+- 2 properties with 6 total units
+- 3 tenants with profiles and employment info
+- 2 active leases with rent schedules
+- 3 maintenance requests (NEW, IN_PROGRESS, COMPLETED)
+- 3 payment transactions (success, failed, pending)
+- Notification templates and sample events
+- Document metadata (lease PDF, move-in checklist)
+- Report definitions with sample run
+
+All IDs are deterministic - re-running won't create duplicates.
+
+### Troubleshooting
+
+If database is in private subnet:
+
+```bash
+# Option 1: SSM Port Forwarding
+aws ssm start-session --target <instance-id> \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["<rds-endpoint>"],"portNumber":["5432"],"localPortNumber":["5432"]}'
+
+# Then in another terminal:
+DATABASE_URL="postgresql://user:pass@localhost:5432/leasebase" npm run seed
+```
+
+See [automation/seed/docs/SEEDING.md](automation/seed/docs/SEEDING.md) for full documentation.
 
 ## CI/CD
 

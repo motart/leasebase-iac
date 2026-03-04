@@ -312,6 +312,28 @@ module "rds" {
 }
 
 ################################################################################
+# Database Platform (Aurora + Proxy + Per-Service Secrets + Alarms)
+################################################################################
+
+module "database_platform" {
+  source                 = "../../modules/database-platform"
+  environment            = local.environment
+  name_prefix            = local.name_prefix
+  vpc_id                 = module.vpc.vpc_id
+  private_subnet_ids     = module.vpc.private_subnet_ids
+  ecs_security_group_ids = [for s in module.services : s.security_group_id]
+  kms_key_id             = module.kms.key_id
+  kms_key_arn            = module.kms.key_arn
+  database_name          = var.db_name
+  instance_count         = 1 # single instance in dev for cost savings
+  min_capacity           = var.aurora_min_capacity
+  max_capacity           = var.aurora_max_capacity
+  deletion_protection    = false
+  skip_final_snapshot    = true
+  common_tags            = local.common_tags
+}
+
+################################################################################
 # Redis
 ################################################################################
 

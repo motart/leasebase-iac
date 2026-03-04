@@ -28,8 +28,10 @@ interface JiraWebhookPayload {
     fields: {
       summary?: string;
       status?: { name: string };
+      issuetype?: { name: string; hierarchyLevel?: number };
       labels?: string[];
       project?: { key: string };
+      parent?: { key: string; fields?: { summary?: string } };
     };
   };
   changelog?: {
@@ -83,20 +85,81 @@ function log(level: string, msg: string, data?: Record<string, unknown>) {
   console.log(JSON.stringify(entry));
 }
 
+// ── Coding-ticket filters ───────────────────────────────────────────────────
+
+// Issue types that represent implementable work
+const CODING_ISSUE_TYPES = new Set(["story", "task", "bug"]);
+
+// Labels that explicitly exclude a ticket from AI code generation
+const SKIP_LABELS = new Set([
+  "no-code",
+  "no-ai",
+  "docs-only",
+  "planning",
+  "manual",
+  "skip-automation",
+]);
+
+// Parent epic summaries that are non-coding (documentation / process work)
+const NON_CODING_EPICS = new Set([
+  "ops readiness",
+]);
+
 // ── Core logic ──────────────────────────────────────────────────────────────
 
+/**
+ * Returns true only when:
+ *  1. The issue type represents coding work (Story, Task, Bug)
+ *  2. No opt-out label is present (no-code, docs-only, etc.)
+ *  3. The parent epic is not a known non-coding epic
+ *  4. The status trigger condition is met (Ready transition or ai-build label)
+ */
 function shouldTrigger(payload: JiraWebhookPayload): boolean {
   const issue = payload.issue;
   if (!issue) return false;
 
-  // Check 1: label contains "ai-build"
-  const labels = issue.fields?.labels ?? [];
-  if (labels.some((l) => l.toLowerCase().includes("ai-build"))) {
+  const labels   = issue.fields?.labels ?? [];
+  const lcLabels = labels.map((l) => l.toLowerCase());
+
+  // ── Gate 1: issue type must be coding-related ─────────────────────────
+  const issueType = issue.fields?.issuetype?.name?.toLowerCase() ?? "";
+  if (issueType && !CODING_ISSUE_TYPES.has(issueType)) {
+    log("info", "Skipped: issue type is not coding-related", {
+      key: issue.key,
+      issueType,
+    });
+    return false;
+  }
+
+  // ── Gate 2: check for opt-out labels ──────────────────────────────────
+  const skipLabel = lcLabels.find((l) => SKIP_LABELS.has(l));
+  if (skipLabel) {
+    log("info", "Skipped: opt-out label present", {
+      key: issue.key,
+      label: skipLabel,
+    });
+    return false;
+  }
+
+  // ── Gate 3: parent epic must not be a non-coding epic ─────────────────
+  const parentSummary = issue.fields?.parent?.fields?.summary?.toLowerCase() ?? "";
+  if (parentSummary && NON_CODING_EPICS.has(parentSummary)) {
+    log("info", "Skipped: parent epic is non-coding", {
+      key: issue.key,
+      parentSummary,
+    });
+    return false;
+  }
+
+  // ── Trigger conditions ────────────────────────────────────────────────
+
+  // "ai-build" label always triggers (overrides status check)
+  if (lcLabels.some((l) => l.includes("ai-build"))) {
     log("info", "Trigger: ai-build label detected", { key: issue.key });
     return true;
   }
 
-  // Check 2: status transitioned to "Ready" via changelog
+  // Status transitioned to "Ready" via changelog
   const items = payload.changelog?.items ?? [];
   for (const item of items) {
     if (
@@ -108,9 +171,14 @@ function shouldTrigger(payload: JiraWebhookPayload): boolean {
     }
   }
 
-  // Check 3: current status is "Ready" (fallback if no changelog)
-  if (issue.fields?.status?.name?.toLowerCase() === "ready" && items.length === 0) {
-    log("info", "Trigger: current status is Ready (no changelog)", { key: issue.key });
+  // Current status is "Ready" (fallback when changelog is absent)
+  if (
+    issue.fields?.status?.name?.toLowerCase() === "ready" &&
+    items.length === 0
+  ) {
+    log("info", "Trigger: current status is Ready (no changelog)", {
+      key: issue.key,
+    });
     return true;
   }
 
