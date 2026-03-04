@@ -1,0 +1,178 @@
+name: Plan Dev (Core + Automation)
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'modules/**'
+      - 'envs/**'
+      - 'automation/infra/**'
+      - 'automation/lambda/**'
+      - 'ops/**'
+      - '.github/workflows/plan-dev.yml'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.6.0"
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Format check (entire repo)
+  # --------------------------------------------------------------------------
+  fmt-check:
+    name: Terraform Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - run: terraform fmt -check -recursive
+
+  # --------------------------------------------------------------------------
+  # Validate all core environments
+  # --------------------------------------------------------------------------
+  validate-core:
+    name: Validate Core (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, qa, uat, prod]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Terraform Init
+        working-directory: envs/${{ matrix.env }}
+        run: terraform init -backend=false -input=false
+      - name: Terraform Validate
+        working-directory: envs/${{ matrix.env }}
+        run: terraform validate
+
+  # --------------------------------------------------------------------------
+  # Validate automation environments
+  # --------------------------------------------------------------------------
+  validate-automation:
+    name: Validate Automation (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, prod]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Terraform Init
+        working-directory: automation/infra/envs/${{ matrix.env }}
+        run: terraform init -backend=false -input=false
+      - name: Terraform Validate
+        working-directory: automation/infra/envs/${{ matrix.env }}
+        run: terraform validate
+
+  # --------------------------------------------------------------------------
+  # Plan Core (dev)
+  # --------------------------------------------------------------------------
+  plan-core:
+    name: Plan Core (dev)
+    needs: [fmt-check, validate-core]
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Terraform Init
+        working-directory: envs/dev
+        run: terraform init -input=false
+      - name: Terraform Plan
+        working-directory: envs/dev
+        run: terraform plan -no-color -input=false -out=dev-core.tfplan
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-core-dev
+          path: envs/dev/dev-core.tfplan
+          retention-days: 5
+
+  # --------------------------------------------------------------------------
+  # Plan Automation (dev)
+  # --------------------------------------------------------------------------
+  plan-automation:
+    name: Plan Automation (dev)
+    needs: [fmt-check, validate-automation]
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build Lambda
+        working-directory: automation/lambda
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Terraform Init
+        working-directory: automation/infra/envs/dev
+        run: terraform init -input=false
+      - name: Terraform Plan
+        working-directory: automation/infra/envs/dev
+        env:
+          TF_VAR_webhook_secret: ${{ secrets.JIRA_WEBHOOK_SECRET }}
+          TF_VAR_github_token: ${{ secrets.GH_AUTOMATION_TOKEN }}
+        run: terraform plan -no-color -input=false -out=dev-automation.tfplan
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-automation-dev
+          path: automation/infra/envs/dev/dev-automation.tfplan
+          retention-days: 5
+
+  # --------------------------------------------------------------------------
+  # PR Comment summary
+  # --------------------------------------------------------------------------
+  comment:
+    name: PR Comment
+    needs: [plan-core, plan-automation]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `#### Terraform Plan (dev) — Core + Automation 📋
+            
+            | Stack | Status |
+            |-------|--------|
+            | Core (\`envs/dev\`) | ✅ Plan complete |
+            | Automation (\`automation/infra/envs/dev\`) | ✅ Plan complete |
+            
+            Plan artifacts are available in the workflow run.
+            
+            *Pushed by: @${{ github.actor }}*`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

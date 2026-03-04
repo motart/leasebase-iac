@@ -100,3 +100,13 @@ clean:
 	@echo "Cleaned."
 
 lint: fmt-check validate
+
+# ---------------------------------------------------------------------------
+# Unified dev deploy (core + automation)
+# ---------------------------------------------------------------------------
+
+deploy-dev:
+	@bash ops/scripts/deploy-dev.sh
+
+plan-dev:
+	@PLAN_ONLY=true bash ops/scripts/deploy-dev.sh

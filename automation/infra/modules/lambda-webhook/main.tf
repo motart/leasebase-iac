@@ -21,10 +21,10 @@ resource "aws_lambda_function" "webhook" {
 
   environment {
     variables = {
-      WEBHOOK_SECRET_NAME = var.webhook_secret_name
+      WEBHOOK_SECRET_NAME  = var.webhook_secret_name
       GH_TOKEN_SECRET_NAME = var.github_token_secret_name
-      GITHUB_OWNER        = var.github_owner
-      LOG_LEVEL           = var.log_level
+      GITHUB_OWNER         = var.github_owner
+      LOG_LEVEL            = var.log_level
     }
   }
 

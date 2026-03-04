@@ -1,0 +1,71 @@
+name: Deploy Dev (Core + Automation)
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan_only:
+        description: 'Plan only (skip apply)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "1.6.0"
+  AWS_REGION: us-west-2
+
+jobs:
+  deploy:
+    name: Deploy Dev
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Node.js (for Lambda build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Lambda
+        working-directory: automation/lambda
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+
+      - name: Deploy Dev
+        env:
+          TF_VAR_webhook_secret: ${{ secrets.JIRA_WEBHOOK_SECRET }}
+          TF_VAR_github_token: ${{ secrets.GH_AUTOMATION_TOKEN }}
+          PLAN_ONLY: ${{ inputs.plan_only }}
+        run: |
+          chmod +x ops/scripts/deploy-dev.sh ops/scripts/terraform-common.sh
+          bash ops/scripts/deploy-dev.sh
+
+      - name: Upload Plans
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-tfplans
+          path: |
+            envs/dev/dev-core.tfplan
+            automation/infra/envs/dev/dev-automation.tfplan
+          if-no-files-found: ignore
+          retention-days: 7
