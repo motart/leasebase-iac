@@ -1,0 +1,11 @@
+{
+  "BFF":   "leasebase-bff-gateway",
+  "LEASE": "leasebase-lease-service",
+  "PROP":  "leasebase-property-service",
+  "TEN":   "leasebase-tenant-service",
+  "MAINT": "leasebase-maintenance-service",
+  "PAY":   "leasebase-payments-service",
+  "NOTIF": "leasebase-notification-service",
+  "DOC":   "leasebase-document-service",
+  "RPT":   "leasebase-reporting-service"
+}

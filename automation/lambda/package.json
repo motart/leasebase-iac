@@ -1,0 +1,18 @@
+{
+  "name": "leasebase-automation-jira-webhook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jira webhook handler Lambda — dispatches GitHub Actions for LeaseBase",
+  "scripts": {
+    "build": "npm run clean && tsc && cp src/jira-to-repo-map.json dist/ 2>/dev/null || true",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.500.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0"
+  }
+}
