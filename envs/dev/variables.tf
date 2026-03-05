@@ -123,7 +123,16 @@ variable "github_oidc_repositories" {
   type        = list(string)
   default = [
     "motart/leasebase_all",
+    "motart/leasebase-auth-service",
+    "motart/leasebase-bff-gateway",
+    "motart/leasebase-lease-service",
+    "motart/leasebase-property-service",
+    "motart/leasebase-tenant-service",
+    "motart/leasebase-maintenance-service",
     "motart/leasebase-payments-service",
+    "motart/leasebase-notification-service",
+    "motart/leasebase-document-service",
+    "motart/leasebase-reporting-service",
   ]
 }
 
