@@ -102,34 +102,37 @@ resource "aws_iam_role_policy" "task_base" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "SecretsManagerRead"
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue",
-          "ssm:GetParameter",
-          "ssm:GetParameters",
-          "ssm:GetParametersByPath"
-        ]
-        Resource = "*"
-      },
-      {
-        Sid      = "KMSDecrypt"
-        Effect   = "Allow"
-        Action   = ["kms:Decrypt"]
-        Resource = "*"
-      },
-      {
-        Sid    = "XRay"
-        Effect = "Allow"
-        Action = [
-          "xray:PutTraceSegments",
-          "xray:PutTelemetryRecords"
-        ]
-        Resource = "*"
-      }
-    ]
+    Statement = concat(
+      [
+        {
+          Sid    = "SecretsManagerRead"
+          Effect = "Allow"
+          Action = [
+            "secretsmanager:GetSecretValue",
+            "ssm:GetParameter",
+            "ssm:GetParameters",
+            "ssm:GetParametersByPath"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid      = "KMSDecrypt"
+          Effect   = "Allow"
+          Action   = ["kms:Decrypt"]
+          Resource = "*"
+        },
+        {
+          Sid    = "XRay"
+          Effect = "Allow"
+          Action = [
+            "xray:PutTraceSegments",
+            "xray:PutTelemetryRecords"
+          ]
+          Resource = "*"
+        }
+      ],
+      var.extra_iam_statements
+    )
   })
 }
 
@@ -245,11 +248,14 @@ resource "aws_ecs_task_definition" "main" {
         }
       ]
 
-      environment = [
-        { name = "PORT", value = tostring(var.container_port) },
-        { name = "NODE_ENV", value = var.environment },
-        { name = "SERVICE_NAME", value = var.name },
-      ]
+      environment = concat(
+        [
+          { name = "PORT", value = tostring(var.container_port) },
+          { name = "NODE_ENV", value = var.environment },
+          { name = "SERVICE_NAME", value = var.name },
+        ],
+        var.extra_environment
+      )
 
       secrets = var.secrets
 

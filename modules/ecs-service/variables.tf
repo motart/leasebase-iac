@@ -121,6 +121,26 @@ variable "secrets" {
   default = []
 }
 
+variable "extra_environment" {
+  description = "Additional environment variables to inject into the container"
+  type = list(object({
+    name  = string
+    value = string
+  }))
+  default = []
+}
+
+variable "extra_iam_statements" {
+  description = "Additional IAM policy statements for the task role"
+  type = list(object({
+    Sid      = string
+    Effect   = string
+    Action   = list(string)
+    Resource = list(string)
+  }))
+  default = []
+}
+
 variable "ecr_force_delete" {
   description = "Force delete ECR repo (for non-prod)"
   type        = bool

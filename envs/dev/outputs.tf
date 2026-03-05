@@ -37,12 +37,12 @@ output "cognito_mobile_client_id" {
 
 # Database (private)
 output "db_endpoint" {
-  value     = module.rds.cluster_endpoint
+  value     = module.database_platform.proxy_endpoint
   sensitive = true
 }
 
 output "db_secret_arn" {
-  value = module.rds.secret_arn
+  value = module.database_platform.master_secret_arn
 }
 
 # Redis

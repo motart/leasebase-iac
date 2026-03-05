@@ -7,17 +7,6 @@ resource "aws_security_group" "redis" {
   description = "Security group for Redis"
   vpc_id      = var.vpc_id
 
-  dynamic "ingress" {
-    for_each = var.allowed_security_group_ids
-    content {
-      description     = "Redis from service"
-      from_port       = 6379
-      to_port         = 6379
-      protocol        = "tcp"
-      security_groups = [ingress.value]
-    }
-  }
-
   tags = merge(var.common_tags, {
     Name = "${var.name_prefix}-redis-sg"
   })

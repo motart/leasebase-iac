@@ -51,6 +51,18 @@ variable "cloudfront_acm_certificate_arn" {
   default     = ""
 }
 
+variable "domain_name" {
+  description = "Custom domain for CloudFront (e.g. dev.leasebase.co)"
+  type        = string
+  default     = ""
+}
+
+variable "root_domain_name" {
+  description = "Root domain for Route53 hosted zone lookup (e.g. leasebase.co)"
+  type        = string
+  default     = "leasebase.co"
+}
+
 # ECS
 variable "log_retention_days" {
   type    = number

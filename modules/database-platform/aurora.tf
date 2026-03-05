@@ -27,8 +27,9 @@ resource "aws_rds_cluster_parameter_group" "main" {
   description = "LeaseBase database platform cluster parameter group"
 
   parameter {
-    name  = "shared_preload_libraries"
-    value = "pg_stat_statements"
+    name         = "shared_preload_libraries"
+    value        = "pg_stat_statements"
+    apply_method = "pending-reboot"
   }
 
   parameter {
