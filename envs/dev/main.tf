@@ -174,6 +174,7 @@ locals {
     ])
     web = concat(local.cognito_env, [
       { name = "API_BASE_URL", value = "http://${module.alb.alb_dns_name}" },
+      { name = "HOSTNAME", value = "0.0.0.0" },
     ])
   }
 
