@@ -6,7 +6,7 @@
 
 resource "aws_security_group" "db" {
   name_prefix = "${var.name_prefix}-db-platform-"
-  description = "LeaseBase database platform — Aurora access"
+  description = "LeaseBase database platform - Aurora access"
   vpc_id      = var.vpc_id
 
   # Allow inbound from ECS services
@@ -34,7 +34,7 @@ resource "aws_security_group" "db" {
 
 resource "aws_security_group" "proxy" {
   name_prefix = "${var.name_prefix}-db-proxy-"
-  description = "LeaseBase database platform — RDS Proxy access"
+  description = "LeaseBase database platform - RDS Proxy access"
   vpc_id      = var.vpc_id
 
   # Allow inbound from ECS services
