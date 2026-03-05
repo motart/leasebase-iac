@@ -70,34 +70,82 @@ leasebase-iac/
 - AWS CLI v2 with profiles for each account
 - Docker (for building service images)
 
-## Quick Start (Deploy Dev v2)
+## Zero-to-Dev: Flawless Terraform Run From 0
 
-### 1. Bootstrap Remote State (first time)
+This is the recommended first-time bootstrap flow for `envs/dev`. It includes the DNS/TLS checks required for a clean apply when using `dev.leasebase.co`.
+
+### 1) Bootstrap remote state (first time per account/env)
 
 ```bash
 make bootstrap ENV=dev
 ```
 
-### 2. Configure Backend
+### 2) Configure backend
 
 ```bash
 cp envs/dev/backend.hcl.example envs/dev/backend.hcl
-# Edit backend.hcl with your account ID
+# Edit envs/dev/backend.hcl with the bucket/table/account values from bootstrap output
 ```
 
-### 3. Deploy
+### 3) Create `terraform.tfvars` for dev
 
 ```bash
-make init ENV=dev
-make plan ENV=dev
-make apply ENV=dev
+cp envs/dev/terraform.tfvars.example envs/dev/terraform.tfvars
 ```
 
-### 4. View Outputs
+At minimum, set these values in `envs/dev/terraform.tfvars`:
+
+```hcl
+aws_region                     = "us-west-2"
+domain_name                    = "dev.leasebase.co"
+root_domain_name               = "leasebase.co"
+cloudfront_acm_certificate_arn = "arn:aws:acm:us-east-1:<account-id>:certificate/<certificate-id>"
+
+# If OIDC provider already exists in the account:
+create_github_oidc_provider       = false
+existing_github_oidc_provider_arn = "arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com"
+```
+
+Notes:
+- `cloudfront_acm_certificate_arn` **must** be in `us-east-1` and in `ISSUED` status.
+- `domain_name` must be set, otherwise Route53 alias creation is skipped.
+
+### 4) DNS preflight (required)
+
+Before apply, ensure there is exactly **one** public Route53 hosted zone for `leasebase.co` in the target account:
 
 ```bash
-make output ENV=dev
+aws route53 list-hosted-zones \
+  --query "HostedZones[?Name==\`leasebase.co.\`].[Id,Name,ResourceRecordSetCount]" \
+  --output table
 ```
+
+If multiple zones exist, remove duplicates before apply, or Terraform may fail with:
+`multiple Route 53 Hosted Zones matched`.
+
+Also ensure the domain registrar nameservers match the hosted zone delegation set.
+
+### 5) Init, plan, apply (from `envs/dev`)
+
+```bash
+cd envs/dev
+terraform init -reconfigure -backend-config=backend.hcl
+terraform plan -var-file=terraform.tfvars -out dev.tfplan
+terraform apply dev.tfplan
+```
+
+### 6) Post-apply verification
+
+```bash
+terraform output
+curl -i "$(terraform output -raw api_gateway_endpoint)/health"
+dig +short dev.leasebase.co
+```
+
+Expected:
+- ECS services become healthy (`runningCount == desiredCount`)
+- API health endpoint responds
+- `dev.leasebase.co` resolves to CloudFront alias target
 
 ## Common Commands
 
