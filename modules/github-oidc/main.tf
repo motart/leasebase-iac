@@ -103,9 +103,9 @@ resource "aws_iam_role_policy" "ecr" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ECRAuth"
-        Effect = "Allow"
-        Action = ["ecr:GetAuthorizationToken"]
+        Sid      = "ECRAuth"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
         Resource = "*"
       },
       {
@@ -157,9 +157,9 @@ resource "aws_iam_role_policy" "ecs" {
         Resource = "*"
       },
       {
-        Sid    = "PassECSRoles"
-        Effect = "Allow"
-        Action = ["iam:PassRole"]
+        Sid      = "PassECSRoles"
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
         Resource = var.ecs_role_arns
         Condition = {
           StringEquals = {
@@ -187,6 +187,28 @@ resource "aws_iam_role_policy" "sts" {
         Effect   = "Allow"
         Action   = ["sts:GetCallerIdentity"]
         Resource = "*"
+      }
+    ]
+  })
+}
+
+################################################################################
+# Policy — CloudFront (cache invalidation after deploys)
+################################################################################
+
+resource "aws_iam_role_policy" "cloudfront" {
+  count = length(var.cloudfront_distribution_arns) > 0 ? 1 : 0
+  name  = "cloudfront-invalidate"
+  role  = aws_iam_role.github_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "CloudFrontInvalidate"
+        Effect   = "Allow"
+        Action   = ["cloudfront:CreateInvalidation"]
+        Resource = var.cloudfront_distribution_arns
       }
     ]
   })

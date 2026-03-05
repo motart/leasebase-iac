@@ -36,6 +36,12 @@ variable "ecs_role_arns" {
   type        = list(string)
 }
 
+variable "cloudfront_distribution_arns" {
+  description = "CloudFront distribution ARNs the role can create invalidations for"
+  type        = list(string)
+  default     = []
+}
+
 variable "allow_logs_access" {
   description = "Whether to allow CloudWatch Logs read access"
   type        = bool

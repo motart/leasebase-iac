@@ -22,6 +22,11 @@ output "cloudfront_domain" {
   value = module.cloudfront.distribution_domain_name
 }
 
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID (for cache invalidation in deploy scripts)"
+  value       = module.cloudfront.distribution_id
+}
+
 # Cognito
 output "cognito_user_pool_id" {
   value = module.cognito.user_pool_id

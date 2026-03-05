@@ -630,6 +630,8 @@ module "github_oidc" {
     [for k, v in module.services : v.task_role_arn]
   )
 
+  cloudfront_distribution_arns = [module.cloudfront.distribution_arn]
+
   allow_logs_access = true
   common_tags       = local.common_tags
 }
