@@ -75,3 +75,9 @@ output "event_bus_name" {
 output "sqs_queue_urls" {
   value = module.sqs.queue_urls
 }
+
+# GitHub Actions OIDC
+output "github_actions_role_arn" {
+  description = "IAM role ARN for GitHub Actions. Set as AWS_ROLE_ARN repo variable."
+  value       = module.github_oidc.role_arn
+}

@@ -595,3 +595,30 @@ module "observability" {
   service_names    = [for k, v in module.services : v.service_name]
   common_tags      = local.common_tags
 }
+
+################################################################################
+# GitHub Actions OIDC (CI/CD)
+################################################################################
+
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  name_prefix         = local.name_prefix
+  github_repositories = var.github_oidc_repositories
+  allowed_branch      = "develop"
+  create_oidc_provider = var.create_github_oidc_provider
+
+  ecr_repository_arns = [
+    for k, v in module.services : "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${v.ecr_repository_name}"
+  ]
+
+  ecs_role_arns = concat(
+    [aws_iam_role.ecs_execution.arn],
+    [for k, v in module.services : v.task_role_arn]
+  )
+
+  allow_logs_access = true
+  common_tags       = local.common_tags
+}
+
+data "aws_caller_identity" "current" {}
