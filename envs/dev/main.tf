@@ -147,7 +147,7 @@ locals {
       cpu               = 256
       memory            = 512
       desired_count     = 1
-      health_check_path = "/"
+      health_check_path = "/healthz"
       path_patterns     = ["/*"]
       priority          = 500
     }
