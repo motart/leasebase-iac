@@ -47,6 +47,12 @@ variable "cloudfront_acm_certificate_arn" {
   default = ""
 }
 
+variable "domain_name" {
+  description = "Custom domain for the web frontend (e.g. qa.leasebase.co)"
+  type        = string
+  default     = ""
+}
+
 variable "log_retention_days" {
   type    = number
   default = 14

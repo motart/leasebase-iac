@@ -42,6 +42,7 @@ locals {
   bff_gateway_extra_env = [
     { name = "INTERNAL_ALB_URL", value = "http://${module.alb.alb_dns_name}" },
     { name = "USE_ALB", value = "true" },
+    { name = "CORS_ORIGIN", value = var.domain_name != "" ? "https://${var.domain_name}" : "http://localhost:3000" },
   ]
 
   services = {

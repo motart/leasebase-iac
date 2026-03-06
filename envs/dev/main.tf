@@ -158,6 +158,7 @@ locals {
     bff-gateway = concat(local.cognito_env, [
       { name = "INTERNAL_ALB_URL", value = "http://${module.alb.alb_dns_name}" },
       { name = "USE_ALB", value = "true" },
+      { name = "CORS_ORIGIN", value = var.domain_name != "" ? "https://${var.domain_name}" : "http://localhost:3000" },
     ])
     auth-service        = local.cognito_env
     property-service    = concat(local.cognito_env, local.redis_env)
@@ -176,7 +177,8 @@ locals {
       { name = "SQS_QUEUE_URL", value = module.sqs.queue_urls["reporting-jobs"] },
     ])
     web = concat(local.cognito_env, [
-      { name = "API_BASE_URL", value = "http://${module.alb.alb_dns_name}" },
+      { name = "API_BASE_URL", value = "https://${var.api_domain_name}" },
+      { name = "NEXT_PUBLIC_API_BASE_URL", value = "https://${var.api_domain_name}" },
       { name = "HOSTNAME", value = "0.0.0.0" },
       { name = "NEXT_PUBLIC_APP_URL", value = "https://${var.domain_name}" },
     ])
@@ -281,9 +283,7 @@ module "alb" {
 }
 
 ################################################################################
-# Public Web ALB (CloudFront → web service, bypasses API Gateway)
-# Dev only: internet-facing ALB in public subnets.
-# For prod, restrict the SG to the CloudFront managed prefix list.
+# Public Web ALB — internet-facing, serves dev.leasebase.co directly.
 ################################################################################
 
 resource "aws_security_group" "web_alb" {
@@ -292,7 +292,15 @@ resource "aws_security_group" "web_alb" {
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description = "HTTP from anywhere (CloudFront)"
+    description = "HTTPS from anywhere"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTP from anywhere (redirects to HTTPS)"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -355,14 +363,33 @@ resource "aws_lb_target_group" "web_alb" {
   }
 }
 
-resource "aws_lb_listener" "web_alb" {
+resource "aws_lb_listener" "web_alb_https" {
+  load_balancer_arn = aws_lb.web_alb.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate_validation.regional.certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web_alb.arn
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_lb_listener" "web_alb_http_redirect" {
   load_balancer_arn = aws_lb.web_alb.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.web_alb.arn
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 
   tags = local.common_tags
@@ -379,6 +406,17 @@ module "apigw" {
   subnet_ids       = module.vpc.private_subnet_ids
   alb_listener_arn = module.alb.listener_arn
   common_tags      = local.common_tags
+
+  # CORS: only the web frontend and local dev
+  cors_allow_origins = compact([
+    var.domain_name != "" ? "https://${var.domain_name}" : "",
+    "http://localhost:3000",
+  ])
+
+  # Custom domain: api.dev.leasebase.co
+  custom_domain_name            = var.api_domain_name
+  custom_domain_certificate_arn = var.api_domain_name != "" ? aws_acm_certificate_validation.regional.certificate_arn : ""
+  custom_domain_zone_id         = var.api_domain_name != "" ? data.aws_route53_zone.main[0].zone_id : ""
 }
 
 ################################################################################
@@ -485,7 +523,9 @@ module "services" {
   extra_iam_statements  = lookup(local.service_extra_iam, each.key, [])
   common_tags           = local.common_tags
 
-  # Public web ALB target group — only the web service gets registered
+  # Web service: skip internal ALB, register only with public web ALB.
+  # All other services: register with internal ALB only.
+  register_with_alb            = each.key != "web"
   additional_target_group_arns = each.key == "web" ? [aws_lb_target_group.web_alb.arn] : []
 }
 
@@ -654,10 +694,28 @@ module "cognito" {
 }
 
 ################################################################################
-# CloudFront
+# CloudFront (disabled for dev — traffic goes directly to ALB / API GW)
 ################################################################################
+# State migration: module.cloudfront -> module.cloudfront[0] when count was added.
+# Prevents destroy/recreate (and downtime) by mapping old state addresses.
+moved {
+  from = module.cloudfront.aws_cloudfront_distribution.main
+  to   = module.cloudfront[0].aws_cloudfront_distribution.main
+}
+
+moved {
+  from = module.cloudfront.aws_cloudfront_origin_request_policy.web_default
+  to   = module.cloudfront[0].aws_cloudfront_origin_request_policy.web_default
+}
+
+moved {
+  from = module.cloudfront.aws_cloudfront_response_headers_policy.security
+  to   = module.cloudfront[0].aws_cloudfront_response_headers_policy.security
+}
 
 module "cloudfront" {
+  count = var.enable_cloudfront ? 1 : 0
+
   source               = "../../modules/cloudfront"
   environment          = local.environment
   name_prefix          = local.name_prefix
@@ -670,7 +728,7 @@ module "cloudfront" {
 }
 
 ################################################################################
-# Route53 - dev.leasebase.co → CloudFront
+# Route53
 ################################################################################
 
 data "aws_route53_zone" "main" {
@@ -678,6 +736,8 @@ data "aws_route53_zone" "main" {
   name  = var.root_domain_name
 }
 
+# dev.leasebase.co — points to either the public web ALB or CloudFront,
+# controlled by var.route53_web_target for safe 2-step cutover.
 resource "aws_route53_record" "web" {
   count   = var.domain_name != "" ? 1 : 0
   zone_id = data.aws_route53_zone.main[0].zone_id
@@ -685,10 +745,61 @@ resource "aws_route53_record" "web" {
   type    = "A"
 
   alias {
-    name                   = module.cloudfront.distribution_domain_name
-    zone_id                = module.cloudfront.distribution_hosted_zone_id
-    evaluate_target_health = false
+    name = (
+      var.route53_web_target == "cloudfront" && var.enable_cloudfront
+      ? module.cloudfront[0].distribution_domain_name
+      : aws_lb.web_alb.dns_name
+    )
+    zone_id = (
+      var.route53_web_target == "cloudfront" && var.enable_cloudfront
+      ? module.cloudfront[0].distribution_hosted_zone_id
+      : aws_lb.web_alb.zone_id
+    )
+    evaluate_target_health = var.route53_web_target == "alb"
   }
+}
+
+################################################################################
+# ACM Certificate (us-west-2) — covers dev.leasebase.co + api.dev.leasebase.co
+################################################################################
+
+resource "aws_acm_certificate" "regional" {
+  count = var.domain_name != "" ? 1 : 0
+
+  domain_name               = var.domain_name
+  subject_alternative_names = var.api_domain_name != "" ? [var.api_domain_name] : []
+  validation_method         = "DNS"
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-regional-cert"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in(var.domain_name != "" ? aws_acm_certificate.regional[0].domain_validation_options : []) :
+    dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  zone_id         = data.aws_route53_zone.main[0].zone_id
+  name            = each.value.name
+  type            = each.value.type
+  records         = [each.value.record]
+  ttl             = 60
+  allow_overwrite = true
+}
+
+resource "aws_acm_certificate_validation" "regional" {
+  certificate_arn         = aws_acm_certificate.regional[0].arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
 }
 
 ################################################################################
@@ -739,7 +850,7 @@ module "github_oidc" {
     [for k, v in module.services : v.task_role_arn]
   )
 
-  cloudfront_distribution_arns = [module.cloudfront.distribution_arn]
+  cloudfront_distribution_arns = var.enable_cloudfront ? [module.cloudfront[0].distribution_arn] : []
 
   allow_logs_access = true
   common_tags       = local.common_tags
