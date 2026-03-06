@@ -145,12 +145,15 @@ resource "aws_security_group" "service" {
   description = "Security group for ${var.name} ECS service"
   vpc_id      = var.vpc_id
 
-  ingress {
-    description     = "Traffic from ALB"
-    from_port       = var.container_port
-    to_port         = var.container_port
-    protocol        = "tcp"
-    security_groups = [var.alb_security_group_id]
+  dynamic "ingress" {
+    for_each = var.register_with_alb ? [1] : []
+    content {
+      description     = "Traffic from internal ALB"
+      from_port       = var.container_port
+      to_port         = var.container_port
+      protocol        = "tcp"
+      security_groups = [var.alb_security_group_id]
+    }
   }
 
   egress {
@@ -176,6 +179,8 @@ resource "aws_security_group" "service" {
 ################################################################################
 
 resource "aws_lb_target_group" "main" {
+  count = var.register_with_alb ? 1 : 0
+
   name        = "${var.name_prefix}-${replace(var.name, "-service", "")}"
   port        = var.container_port
   protocol    = "HTTP"
@@ -204,12 +209,14 @@ resource "aws_lb_target_group" "main" {
 }
 
 resource "aws_lb_listener_rule" "main" {
+  count = var.register_with_alb ? 1 : 0
+
   listener_arn = var.alb_listener_arn
   priority     = var.priority
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = aws_lb_target_group.main[0].arn
   }
 
   condition {
@@ -301,10 +308,13 @@ resource "aws_ecs_service" "main" {
     assign_public_ip = false
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.main.arn
-    container_name   = var.name
-    container_port   = var.container_port
+  dynamic "load_balancer" {
+    for_each = var.register_with_alb ? [aws_lb_target_group.main[0].arn] : []
+    content {
+      target_group_arn = load_balancer.value
+      container_name   = var.name
+      container_port   = var.container_port
+    }
   }
 
   dynamic "load_balancer" {
