@@ -231,7 +231,15 @@ resource "aws_lb_listener_rule" "main" {
 }
 
 ################################################################################
-# ECS Task Definition
+# ECS Task Definition (bootstrap / env-var seed)
+#
+# CI (deploy_ecs.sh) owns the task definition lifecycle after initial creation.
+# On each deploy, CI fetches the latest revision, swaps the image tag, and
+# registers a new revision — preserving all env vars set here.
+#
+# To add or change env vars: update extra_environment in the env config,
+# run terraform apply, then trigger a CI deploy (or force a redeployment)
+# so the new revision inherits the updated vars.
 ################################################################################
 
 resource "aws_ecs_task_definition" "main" {
@@ -337,6 +345,8 @@ resource "aws_ecs_service" "main" {
   propagate_tags = "TASK_DEFINITION"
 
   lifecycle {
+    # desired_count: managed by autoscaling, not Terraform
+    # task_definition: managed by CI (deploy_ecs.sh), not Terraform
     ignore_changes = [desired_count, task_definition]
   }
 
