@@ -156,24 +156,18 @@ locals {
   }
 
   # ── Per-service extra environment variables ──────────────────────────────
-  # Dev auth bypass — allows E2E tests to log in via header-based bypass.
-  # Must NEVER be set in production.
-  dev_bypass_env = [
-    { name = "DEV_AUTH_BYPASS", value = "true" },
-  ]
-
   service_extra_env = {
-    bff-gateway = concat(local.cognito_env, local.dev_bypass_env, [
+    bff-gateway = concat(local.cognito_env, [
       { name = "INTERNAL_ALB_URL", value = "http://${module.alb.alb_dns_name}" },
       { name = "USE_ALB", value = "true" },
       { name = "CORS_ORIGIN", value = var.domain_name != "" ? "https://${var.domain_name}" : "http://localhost:3000" },
     ])
-    auth-service        = concat(local.cognito_env, local.dev_bypass_env)
-    property-service    = concat(local.cognito_env, local.redis_env, local.dev_bypass_env)
-    lease-service       = concat(local.cognito_env, local.redis_env, local.dev_bypass_env)
-    tenant-service      = concat(local.cognito_env, local.redis_env, local.dev_bypass_env)
-    maintenance-service = concat(local.cognito_env, local.redis_env, local.dev_bypass_env)
-    payments-service    = concat(local.cognito_env, local.redis_env, local.dev_bypass_env)
+    auth-service        = local.cognito_env
+    property-service    = concat(local.cognito_env, local.redis_env)
+    lease-service       = concat(local.cognito_env, local.redis_env)
+    tenant-service      = concat(local.cognito_env, local.redis_env)
+    maintenance-service = concat(local.cognito_env, local.redis_env)
+    payments-service    = concat(local.cognito_env, local.redis_env)
     notification-service = concat(local.cognito_env, [
       { name = "SQS_QUEUE_URL", value = module.sqs.queue_urls["notifications"] },
     ])
