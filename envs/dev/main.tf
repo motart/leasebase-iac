@@ -155,17 +155,34 @@ locals {
     }
   }
 
+  # ── CORS origins (shared by BFF gateway and API Gateway) ─────────────────
+  cors_origins = compact(concat(
+    var.domain_name != "" ? ["https://${var.domain_name}"] : [],
+    [for s in var.portal_subdomains : "https://${s}.${var.root_domain_name}"],
+    ["http://localhost:3000"],
+  ))
+
+  # Shared internal service key for service-to-service auth (invitation flow).
+  # In production this should come from Secrets Manager.
+  internal_service_key = random_password.internal_service_key.result
+
   # ── Per-service extra environment variables ──────────────────────────────
   service_extra_env = {
     bff-gateway = concat(local.cognito_env, [
       { name = "INTERNAL_ALB_URL", value = "http://${module.alb.alb_dns_name}" },
       { name = "USE_ALB", value = "true" },
-      { name = "CORS_ORIGIN", value = var.domain_name != "" ? "https://${var.domain_name}" : "http://localhost:3000" },
+      { name = "CORS_ORIGIN", value = join(",", local.cors_origins) },
     ])
-    auth-service        = local.cognito_env
-    property-service    = concat(local.cognito_env, local.redis_env)
-    lease-service       = concat(local.cognito_env, local.redis_env)
-    tenant-service      = concat(local.cognito_env, local.redis_env)
+    auth-service = concat(local.cognito_env, [
+      { name = "INTERNAL_SERVICE_KEY", value = local.internal_service_key },
+    ])
+    property-service = concat(local.cognito_env, local.redis_env)
+    lease-service    = concat(local.cognito_env, local.redis_env)
+    tenant-service = concat(local.cognito_env, local.redis_env, [
+      { name = "INTERNAL_SERVICE_KEY", value = local.internal_service_key },
+      { name = "AUTH_SERVICE_URL", value = "http://${module.alb.alb_dns_name}" },
+      { name = "APP_DOMAIN", value = var.root_domain_name },
+    ])
     maintenance-service = concat(local.cognito_env, local.redis_env)
     payments-service    = concat(local.cognito_env, local.redis_env)
     notification-service = concat(local.cognito_env, [
@@ -183,12 +200,15 @@ locals {
       { name = "NEXT_PUBLIC_API_BASE_URL", value = "https://${var.api_domain_name}" },
       { name = "HOSTNAME", value = "0.0.0.0" },
       { name = "NEXT_PUBLIC_APP_URL", value = "https://${var.domain_name}" },
+      { name = "NEXT_PUBLIC_APP_DOMAIN", value = var.root_domain_name },
     ])
   }
 
   # ── Per-service DB secret references ────────────────────────────────────
   # Maps service names that need DB access to their Secrets Manager secret ARN
   service_db_secret_map = {
+    bff-gateway          = "bff"
+    auth-service         = "auth"
     property-service     = "property"
     lease-service        = "lease"
     tenant-service       = "tenant"
@@ -238,6 +258,15 @@ locals {
       },
     ]
   }
+}
+
+################################################################################
+# Internal Service Key (service-to-service auth)
+################################################################################
+
+resource "random_password" "internal_service_key" {
+  length  = 48
+  special = false
 }
 
 ################################################################################
@@ -409,11 +438,8 @@ module "apigw" {
   alb_listener_arn = module.alb.listener_arn
   common_tags      = local.common_tags
 
-  # CORS: only the web frontend and local dev
-  cors_allow_origins = compact([
-    var.domain_name != "" ? "https://${var.domain_name}" : "",
-    "http://localhost:3000",
-  ])
+  # CORS: web frontend (all persona subdomains) and local dev
+  cors_allow_origins = local.cors_origins
 
   # Custom domain: api.dev.leasebase.co
   custom_domain_name            = var.api_domain_name
@@ -723,10 +749,13 @@ module "cloudfront" {
   name_prefix          = local.name_prefix
   api_gateway_endpoint = module.apigw.api_endpoint
   acm_certificate_arn  = var.cloudfront_acm_certificate_arn
-  domain_aliases       = var.cloudfront_acm_certificate_arn != "" ? [var.domain_name] : []
-  web_acl_arn          = module.waf.web_acl_arn
-  web_alb_dns_name     = aws_lb.web_alb.dns_name
-  common_tags          = local.common_tags
+  domain_aliases = var.cloudfront_acm_certificate_arn != "" ? concat(
+    [var.domain_name],
+    [for s in var.portal_subdomains : "${s}.${var.root_domain_name}"],
+  ) : []
+  web_acl_arn      = module.waf.web_acl_arn
+  web_alb_dns_name = aws_lb.web_alb.dns_name
+  common_tags      = local.common_tags
 }
 
 ################################################################################
@@ -761,6 +790,31 @@ resource "aws_route53_record" "web" {
   }
 }
 
+# Persona portal subdomains — all point to the same frontend target.
+# signup.leasebase.co, login.leasebase.co, owner.leasebase.co,
+# manager.leasebase.co, tenant.leasebase.co
+resource "aws_route53_record" "portal_subdomains" {
+  for_each = var.domain_name != "" ? toset(var.portal_subdomains) : toset([])
+
+  zone_id = data.aws_route53_zone.main[0].zone_id
+  name    = "${each.value}.${var.root_domain_name}"
+  type    = "A"
+
+  alias {
+    name = (
+      var.route53_web_target == "cloudfront" && var.enable_cloudfront
+      ? module.cloudfront[0].distribution_domain_name
+      : aws_lb.web_alb.dns_name
+    )
+    zone_id = (
+      var.route53_web_target == "cloudfront" && var.enable_cloudfront
+      ? module.cloudfront[0].distribution_hosted_zone_id
+      : aws_lb.web_alb.zone_id
+    )
+    evaluate_target_health = var.route53_web_target == "alb"
+  }
+}
+
 ################################################################################
 # ACM Certificate (us-west-2) — covers dev.leasebase.co + api.dev.leasebase.co
 ################################################################################
@@ -768,9 +822,12 @@ resource "aws_route53_record" "web" {
 resource "aws_acm_certificate" "regional" {
   count = var.domain_name != "" ? 1 : 0
 
-  domain_name               = var.domain_name
-  subject_alternative_names = var.api_domain_name != "" ? [var.api_domain_name] : []
-  validation_method         = "DNS"
+  domain_name = var.domain_name
+  subject_alternative_names = compact(concat(
+    var.api_domain_name != "" ? [var.api_domain_name] : [],
+    ["*.${var.root_domain_name}"],
+  ))
+  validation_method = "DNS"
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-regional-cert"

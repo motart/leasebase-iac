@@ -130,6 +130,12 @@ variable "route53_web_target" {
   }
 }
 
+variable "portal_subdomains" {
+  description = "Subdomain prefixes for persona portals (all route to the web frontend)"
+  type        = list(string)
+  default     = ["signup", "login", "owner", "manager", "tenant"]
+}
+
 # SQS
 variable "sqs_queues" {
   type = map(map(any))
