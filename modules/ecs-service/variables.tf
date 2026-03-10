@@ -159,3 +159,9 @@ variable "additional_target_group_arns" {
   default     = []
 }
 
+variable "register_with_alb" {
+  description = "Create a target group and listener rule on the internal ALB. Set false for services that only use an external ALB (e.g. web)."
+  type        = bool
+  default     = true
+}
+

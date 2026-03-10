@@ -57,7 +57,7 @@ resource "aws_iam_role_policy" "proxy_secrets" {
 
 resource "aws_db_proxy" "main" {
   name                   = "${var.name_prefix}-db-proxy"
-  debug_logging          = var.environment == "dev"
+  debug_logging          = false # TODO: re-enable for dev after routing refactor
   engine_family          = "POSTGRESQL"
   idle_client_timeout    = 1800
   require_tls            = true

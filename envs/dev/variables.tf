@@ -63,6 +63,12 @@ variable "root_domain_name" {
   default     = "leasebase.co"
 }
 
+variable "api_domain_name" {
+  description = "Custom domain for the API Gateway (e.g. api.dev.leasebase.co)"
+  type        = string
+  default     = ""
+}
+
 # ECS
 variable "log_retention_days" {
   type    = number
@@ -105,6 +111,23 @@ variable "enable_waf" {
 variable "enable_lambda_workers" {
   type    = bool
   default = false
+}
+
+variable "enable_cloudfront" {
+  description = "Enable CloudFront distribution. Disabled for dev (traffic goes directly to ALB / API GW)."
+  type        = bool
+  default     = false
+}
+
+variable "route53_web_target" {
+  description = "Where the dev.leasebase.co A record points: 'alb' (public web ALB) or 'cloudfront'. Use for safe 2-step cutover."
+  type        = string
+  default     = "alb"
+
+  validation {
+    condition     = contains(["alb", "cloudfront"], var.route53_web_target)
+    error_message = "route53_web_target must be 'alb' or 'cloudfront'."
+  }
 }
 
 # SQS

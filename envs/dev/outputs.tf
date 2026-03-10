@@ -17,14 +17,14 @@ output "api_endpoint" {
   value = module.apigw.api_endpoint
 }
 
-# CloudFront
+# CloudFront (only when enabled)
 output "cloudfront_domain" {
-  value = module.cloudfront.distribution_domain_name
+  value = var.enable_cloudfront ? module.cloudfront[0].distribution_domain_name : ""
 }
 
 output "cloudfront_distribution_id" {
   description = "CloudFront distribution ID (for cache invalidation in deploy scripts)"
-  value       = module.cloudfront.distribution_id
+  value       = var.enable_cloudfront ? module.cloudfront[0].distribution_id : ""
 }
 
 # Cognito
@@ -69,6 +69,12 @@ output "ecs_cluster_name" {
 # ECR URLs (per service)
 output "ecr_repository_urls" {
   value = { for k, v in module.services : k => v.ecr_repository_url }
+}
+
+# API Gateway custom domain
+output "api_custom_domain" {
+  description = "API Gateway custom domain (e.g. api.dev.leasebase.co)"
+  value       = module.apigw.custom_domain_target
 }
 
 # EventBridge

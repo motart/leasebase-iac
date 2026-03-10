@@ -35,3 +35,23 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+
+# ── Custom domain ────────────────────────────────────────────────────────────
+
+variable "custom_domain_name" {
+  description = "Custom domain name for API Gateway (e.g. api.dev.leasebase.co). Empty to skip."
+  type        = string
+  default     = ""
+}
+
+variable "custom_domain_certificate_arn" {
+  description = "ACM certificate ARN for the custom domain (must be in the same region as the API)."
+  type        = string
+  default     = ""
+}
+
+variable "custom_domain_zone_id" {
+  description = "Route53 hosted zone ID for the custom domain DNS record."
+  type        = string
+  default     = ""
+}

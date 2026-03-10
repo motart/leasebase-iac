@@ -22,3 +22,8 @@ output "stage_name" {
   description = "API Gateway stage name"
   value       = aws_apigatewayv2_stage.main.name
 }
+
+output "custom_domain_target" {
+  description = "Regional target domain name for the custom domain (for external DNS)"
+  value       = var.custom_domain_name != "" ? aws_apigatewayv2_domain_name.custom[0].domain_name_configuration[0].target_domain_name : ""
+}

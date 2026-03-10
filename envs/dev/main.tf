@@ -39,11 +39,11 @@ locals {
   }
 
   # ── Cognito env vars shared by all services ──────────────────────────────
+  # Canonical Cognito env vars injected into all ECS services.
+  # All backend code reads COGNITO_CLIENT_ID (see service-common getJwtConfig).
   cognito_env = [
     { name = "COGNITO_USER_POOL_ID", value = module.cognito.user_pool_id },
     { name = "COGNITO_CLIENT_ID", value = module.cognito.web_client_id },
-    # TODO: Remove COGNITO_WEB_CLIENT_ID once all services read COGNITO_CLIENT_ID
-    { name = "COGNITO_WEB_CLIENT_ID", value = module.cognito.web_client_id },
     { name = "COGNITO_REGION", value = var.aws_region },
     { name = "JWKS_URI", value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${module.cognito.user_pool_id}/.well-known/jwks.json" },
   ]

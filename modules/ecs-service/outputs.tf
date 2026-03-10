@@ -19,8 +19,8 @@ output "ecr_repository_name" {
 }
 
 output "target_group_arn" {
-  description = "Target group ARN"
-  value       = aws_lb_target_group.main.arn
+  description = "Target group ARN (empty when register_with_alb is false)"
+  value       = var.register_with_alb ? aws_lb_target_group.main[0].arn : ""
 }
 
 output "task_role_arn" {
