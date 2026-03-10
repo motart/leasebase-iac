@@ -177,7 +177,9 @@ locals {
       { name = "INTERNAL_SERVICE_KEY", value = local.internal_service_key },
     ])
     property-service = concat(local.cognito_env, local.redis_env)
-    lease-service    = concat(local.cognito_env, local.redis_env)
+    lease-service = concat(local.cognito_env, local.redis_env, [
+      { name = "DATABASE_SCHEMA", value = "lease_service" },
+    ])
     tenant-service = concat(local.cognito_env, local.redis_env, [
       { name = "INTERNAL_SERVICE_KEY", value = local.internal_service_key },
       { name = "AUTH_SERVICE_URL", value = "http://${module.alb.alb_dns_name}" },
