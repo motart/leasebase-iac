@@ -751,7 +751,9 @@ module "cloudfront" {
   acm_certificate_arn  = var.cloudfront_acm_certificate_arn
   domain_aliases = var.cloudfront_acm_certificate_arn != "" ? concat(
     [var.domain_name],
-    [for s in var.portal_subdomains : "${s}.${var.root_domain_name}"],
+    # Only add portal subdomains when CloudFront is the routing target;
+    # the us-east-1 cert must cover *.root_domain_name for this to work.
+    var.route53_web_target == "cloudfront" ? [for s in var.portal_subdomains : "${s}.${var.root_domain_name}"] : [],
   ) : []
   web_acl_arn      = module.waf.web_acl_arn
   web_alb_dns_name = aws_lb.web_alb.dns_name
