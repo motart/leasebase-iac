@@ -50,6 +50,32 @@ output "db_secret_arn" {
   value = module.database_platform.master_secret_arn
 }
 
+output "proxy_endpoint" {
+  description = "RDS Proxy endpoint (for scripts)"
+  value       = module.database_platform.proxy_endpoint
+  sensitive   = true
+}
+
+output "service_secret_names" {
+  description = "Map of service → Secrets Manager secret name"
+  value       = module.database_platform.service_secret_names
+}
+
+output "service_db_config" {
+  description = "Full service DB config (for run-schema-init.sh)"
+  value       = module.database_platform.service_db_config
+}
+
+output "db_service_names" {
+  description = "Services that need DB connectivity"
+  value       = module.database_platform.db_service_names
+}
+
+output "schema_owning_service_names" {
+  description = "Services that own a schema"
+  value       = module.database_platform.schema_owning_service_names
+}
+
 # Redis
 output "redis_endpoint" {
   value     = module.redis.primary_endpoint

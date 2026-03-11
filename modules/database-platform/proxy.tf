@@ -37,7 +37,10 @@ resource "aws_iam_role_policy" "proxy_secrets" {
           "secretsmanager:DescribeSecret",
           "secretsmanager:ListSecretVersionIds",
         ]
-        Resource = [aws_secretsmanager_secret.master.arn]
+        Resource = concat(
+          [aws_secretsmanager_secret.master.arn],
+          [for s in aws_secretsmanager_secret.service : s.arn]
+        )
       },
       {
         Effect   = "Allow"
@@ -70,6 +73,17 @@ resource "aws_db_proxy" "main" {
     description = "Master credentials"
     iam_auth    = "DISABLED"
     secret_arn  = aws_secretsmanager_secret.master.arn
+  }
+
+  # Per-service auth entries (one per DB-using service)
+  dynamic "auth" {
+    for_each = aws_secretsmanager_secret.service
+    content {
+      auth_scheme = "SECRETS"
+      description = "${auth.key} service credentials"
+      iam_auth    = "DISABLED"
+      secret_arn  = auth.value.arn
+    }
   }
 
   tags = merge(var.common_tags, {

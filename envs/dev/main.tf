@@ -206,9 +206,10 @@ locals {
     ])
   }
 
-  # ── Per-service DB secret references ────────────────────────────────────
-  # Maps service names that need DB access to their Secrets Manager secret ARN
-  service_db_secret_map = {
+  # ── Per-service DB secret references ──────────────────────────────
+  # Derived from the canonical service_db_config — no hand-maintained map.
+  # Maps ECS service name (with "-service" suffix) → config key in the module.
+  service_db_key_map = {
     bff-gateway          = "bff"
     auth-service         = "auth"
     property-service     = "property"
@@ -221,10 +222,11 @@ locals {
     reporting-service    = "reporting"
   }
 
+  # Only inject DATABASE_SECRET_ARN for services that actually need DB access
   service_secrets = {
-    for svc, schema_key in local.service_db_secret_map : svc => [
-      { name = "DATABASE_SECRET_ARN", valueFrom = module.database_platform.service_secret_arns[schema_key] },
-    ]
+    for svc, cfg_key in local.service_db_key_map : svc => [
+      { name = "DATABASE_SECRET_ARN", valueFrom = module.database_platform.service_secret_arns[cfg_key] },
+    ] if contains(module.database_platform.db_service_names, cfg_key)
   }
 
   # ── Per-service IAM statements ──────────────────────────────────────────

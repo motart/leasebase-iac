@@ -94,20 +94,92 @@ variable "skip_final_snapshot" {
   default     = true
 }
 
-# ── Service schemas ──────────────────────────────────────────────────────────
+# ── Service DB config ────────────────────────────────────────────────
+# Canonical map of every service's database relationship.
+# Type is defined centrally; the default provides the full platform
+# inventory.  Environments can pass the entire map to override.
 
-variable "service_schemas" {
-  description = "Map of service name → schema name for per-service isolation"
-  type        = map(string)
+variable "service_db_config" {
+  description = "Canonical per-service database configuration"
+  type = map(object({
+    db_user      = string       # PostgreSQL role name
+    schema       = string       # Schema name ("" = public-only service)
+    owns_schema  = bool         # true = service owns the schema (CRUD)
+    needs_db     = bool         # true = service needs DB connectivity
+    read_schemas = list(string) # Schemas this service may SELECT from
+  }))
   default = {
-    property     = "property_service"
-    lease        = "lease_service"
-    tenant       = "tenant_service"
-    maintenance  = "maintenance_service"
-    payments     = "payments_service"
-    notification = "notification_service"
-    document     = "document_service"
-    reporting    = "reporting_service"
+    property = {
+      db_user      = "property_user"
+      schema       = "property_service"
+      owns_schema  = true
+      needs_db     = true
+      read_schemas = ["lease_service", "tenant_service", "maintenance_service", "payments_service", "document_service"]
+    }
+    lease = {
+      db_user      = "lease_user"
+      schema       = "lease_service"
+      owns_schema  = true
+      needs_db     = true
+      read_schemas = ["tenant_service"]
+    }
+    tenant = {
+      db_user      = "tenant_user"
+      schema       = "tenant_service"
+      owns_schema  = true
+      needs_db     = true
+      read_schemas = ["lease_service", "property_service", "payments_service", "maintenance_service"]
+    }
+    payments = {
+      db_user      = "payments_user"
+      schema       = "payments_service"
+      owns_schema  = true
+      needs_db     = true
+      read_schemas = []
+    }
+    maintenance = {
+      db_user      = "maintenance_user"
+      schema       = "maintenance_service"
+      owns_schema  = true
+      needs_db     = true
+      read_schemas = ["property_service"]
+    }
+    notification = {
+      db_user      = "notification_user"
+      schema       = "notification_service"
+      owns_schema  = true
+      needs_db     = true
+      read_schemas = []
+    }
+    document = {
+      db_user      = "document_user"
+      schema       = "document_service"
+      owns_schema  = true
+      needs_db     = true
+      read_schemas = []
+    }
+    reporting = {
+      db_user      = "reporting_user"
+      schema       = "reporting_service"
+      owns_schema  = true
+      needs_db     = true
+      read_schemas = ["property_service", "lease_service", "tenant_service", "payments_service", "maintenance_service"]
+    }
+    # ── Public-schema services (no owned schema) ───────────────────
+    bff = {
+      db_user      = "bff_user"
+      schema       = ""
+      owns_schema  = false
+      needs_db     = true
+      read_schemas = []
+    }
+    auth = {
+      db_user      = "auth_user"
+      schema       = ""
+      owns_schema  = false
+      needs_db     = true
+      read_schemas = []
+    }
   }
 }
 
