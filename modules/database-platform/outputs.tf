@@ -37,9 +37,41 @@ output "service_secret_arns" {
   value       = { for k, v in aws_secretsmanager_secret.service : k => v.arn }
 }
 
+output "service_secret_names" {
+  description = "Map of service name → Secrets Manager secret name (for CLI lookup)"
+  value       = { for k, v in aws_secretsmanager_secret.service : k => v.name }
+}
+
 output "schema_names" {
-  description = "Map of service name → schema name"
-  value       = var.service_schemas
+  description = "Map of schema-owning service name → schema name"
+  value       = { for k, v in local.schema_owning_services : k => v.schema }
+}
+
+# ── Structured outputs for scripts & docs ─────────────────────────────
+
+output "service_db_config" {
+  description = "Full resolved service DB config (consumed by run-schema-init.sh)"
+  value       = var.service_db_config
+}
+
+output "db_service_names" {
+  description = "Services that need DB connectivity"
+  value       = keys(local.db_services)
+}
+
+output "schema_owning_service_names" {
+  description = "Services that own a database schema"
+  value       = keys(local.schema_owning_services)
+}
+
+output "public_schema_service_names" {
+  description = "Services that use only the public schema (no owned schema)"
+  value       = keys(local.public_schema_services)
+}
+
+output "proxy_auth_services" {
+  description = "Services with RDS Proxy auth entries"
+  value       = keys(local.proxy_auth_services)
 }
 
 output "db_security_group_id" {

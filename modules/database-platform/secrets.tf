@@ -26,13 +26,13 @@ resource "aws_secretsmanager_secret_version" "master" {
   })
 }
 
-# ── Per-service credentials ──────────────────────────────────────────────────
-# Each service gets its own secret with scoped credentials.
+# ── Per-service credentials ──────────────────────────────────────────
+# Each DB-using service gets its own secret with scoped credentials.
 # Passwords are generated; the actual DB user/schema creation is handled
-# by an init script or migration job (see schema-init.sql).
+# by scripts/schema-init.sql (run via scripts/run-schema-init.sh).
 
 resource "random_password" "service" {
-  for_each = var.service_schemas
+  for_each = local.db_services
 
   length           = 24
   special          = true
@@ -40,7 +40,7 @@ resource "random_password" "service" {
 }
 
 resource "aws_secretsmanager_secret" "service" {
-  for_each = var.service_schemas
+  for_each = local.db_services
 
   name        = "leasebase/${each.key}-db"
   description = "LeaseBase ${each.key} service database credentials"
@@ -53,14 +53,14 @@ resource "aws_secretsmanager_secret" "service" {
 }
 
 resource "aws_secretsmanager_secret_version" "service" {
-  for_each = var.service_schemas
+  for_each = local.db_services
 
   secret_id = aws_secretsmanager_secret.service[each.key].id
   secret_string = jsonencode({
-    username = "${each.key}_user"
+    username = each.value.db_user
     password = random_password.service[each.key].result
     dbname   = var.database_name
-    schema   = each.value
+    schema   = each.value.schema
     host     = aws_db_proxy.main.endpoint
     port     = aws_rds_cluster.main.port
     engine   = "postgres"
