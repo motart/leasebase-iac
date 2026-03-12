@@ -56,6 +56,12 @@ resource "aws_cognito_user_pool" "main" {
     }
   }
 
+  # Cognito schemas are immutable after creation — ignore drift to prevent
+  # "cannot modify or remove schema items" errors on every apply.
+  lifecycle {
+    ignore_changes = [schema]
+  }
+
   tags = merge(var.common_tags, {
     Name = "${var.name_prefix}-users"
   })
