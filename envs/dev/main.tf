@@ -204,6 +204,8 @@ locals {
       { name = "HOSTNAME", value = "0.0.0.0" },
       { name = "NEXT_PUBLIC_APP_URL", value = "https://${var.domain_name}" },
       { name = "NEXT_PUBLIC_APP_DOMAIN", value = var.root_domain_name },
+      { name = "ENABLE_OLD_DOMAIN_REDIRECTS", value = var.old_root_domain_name != "" ? "true" : "false" },
+      { name = "OLD_DOMAIN", value = var.old_root_domain_name },
     ])
   }
 
