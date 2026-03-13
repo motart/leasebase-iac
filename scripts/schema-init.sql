@@ -338,4 +338,38 @@ ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA maintenance_service 
 
 -- payments_user, notification_user, document_user: no cross-schema reads
 
+--------------------------------------------------------------------------------
+-- 4. Public-schema "User" table: SELECT for service-common requireAuth
+--    enrichment (resolves req.user.orgId from cognitoSub at middleware level).
+--    All service roles that use @leasebase/service-common v2.0.1+ need this.
+--------------------------------------------------------------------------------
+
+\echo '=== public.User read grants (requireAuth enrichment) ==='
+
+DO $$
+DECLARE
+  svc_role text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'User') THEN
+    RAISE NOTICE 'public."User" does not exist yet — skipping service-role grants';
+    RETURN;
+  END IF;
+
+  FOREACH svc_role IN ARRAY ARRAY[
+    'property_user',
+    'lease_user',
+    'tenant_user',
+    'payments_user',
+    'maintenance_user',
+    'notification_user',
+    'document_user',
+    'reporting_user'
+  ]
+  LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = svc_role) THEN
+      EXECUTE format('GRANT SELECT ON public."User" TO %I', svc_role);
+    END IF;
+  END LOOP;
+END $$;
+
 \echo '=== LeaseBase schema-init: complete ==='
