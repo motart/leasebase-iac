@@ -72,7 +72,7 @@ leasebase-iac/
 
 ## Zero-to-Dev: Flawless Terraform Run From 0
 
-This is the recommended first-time bootstrap flow for `envs/dev`. It includes the DNS/TLS checks required for a clean apply when using `dev.leasebase.co`.
+This is the recommended first-time bootstrap flow for `envs/dev`. It includes the DNS/TLS checks required for a clean apply when using `app.dev.leasebase.ai`.
 
 ### 1) Bootstrap remote state (first time per account/env)
 
@@ -97,8 +97,10 @@ At minimum, set these values in `envs/dev/terraform.tfvars`:
 
 ```hcl
 aws_region                     = "us-west-2"
-domain_name                    = "dev.leasebase.co"
-root_domain_name               = "leasebase.co"
+domain_name                    = "app.dev.leasebase.ai"
+api_domain_name                = "api.dev.leasebase.ai"
+root_domain_name               = "leasebase.ai"
+old_root_domain_name           = "leasebase.co"
 cloudfront_acm_certificate_arn = "arn:aws:acm:us-east-1:<account-id>:certificate/<certificate-id>"
 
 # If OIDC provider already exists in the account:
@@ -109,14 +111,15 @@ existing_github_oidc_provider_arn = "arn:aws:iam::<account-id>:oidc-provider/tok
 Notes:
 - `cloudfront_acm_certificate_arn` **must** be in `us-east-1` and in `ISSUED` status.
 - `domain_name` must be set, otherwise Route53 alias creation is skipped.
+- `old_root_domain_name` enables 301 redirects from `*.leasebase.co` to `leasebase.ai`.
 
 ### 4) DNS preflight (required)
 
-Before apply, ensure there is exactly **one** public Route53 hosted zone for `leasebase.co` in the target account:
+Before apply, ensure there is exactly **one** public Route53 hosted zone for `leasebase.ai` in the target account:
 
 ```bash
 aws route53 list-hosted-zones \
-  --query "HostedZones[?Name==\`leasebase.co.\`].[Id,Name,ResourceRecordSetCount]" \
+  --query "HostedZones[?Name==\`leasebase.ai.\`].[Id,Name,ResourceRecordSetCount]" \
   --output table
 ```
 
@@ -139,13 +142,13 @@ terraform apply dev.tfplan
 ```bash
 terraform output
 curl -i "$(terraform output -raw api_gateway_endpoint)/health"
-dig +short dev.leasebase.co
+dig +short app.dev.leasebase.ai
 ```
 
 Expected:
 - ECS services become healthy (`runningCount == desiredCount`)
 - API health endpoint responds
-- `dev.leasebase.co` resolves to CloudFront alias target
+- `app.dev.leasebase.ai` resolves to CloudFront or ALB alias target
 
 ## Common Commands
 
@@ -241,8 +244,8 @@ make plan-dev
 After a successful deploy, the script prints a **DEV READY** summary:
 
 ```
-  Web frontend:  https://dev.leasebase.co  (CloudFront: d1234567.cloudfront.net)
-  API endpoint:  https://abc123.execute-api.us-west-2.amazonaws.com
+  Web frontend:  https://app.dev.leasebase.ai  (CloudFront: d1234567.cloudfront.net)
+  API endpoint:  https://api.dev.leasebase.ai
   Webhook URL:   https://xyz789.execute-api.us-west-2.amazonaws.com/automation/jira/webhook
 
   CloudWatch logs:
@@ -252,7 +255,7 @@ After a successful deploy, the script prints a **DEV READY** summary:
 
 ### Verify the Deployment
 
-1. **Web frontend**: open `https://dev.leasebase.co` (or the CloudFront domain from outputs)
+1. **Web frontend**: open `https://app.dev.leasebase.ai` (or the CloudFront domain from outputs)
 2. **API health**: `curl https://<api_endpoint>/health`
 3. **Lambda logs**: `aws logs tail /aws/lambda/leasebase-automation-dev-jira-webhook --follow`
 4. **Test Jira webhook**:
