@@ -62,6 +62,13 @@ resource "aws_cognito_user_pool" "main" {
     ignore_changes = [schema]
   }
 
+  lambda_config {
+    pre_token_generation_config {
+      lambda_arn     = aws_lambda_function.pre_token_generation.arn
+      lambda_version = "V2_0"
+    }
+  }
+
   tags = merge(var.common_tags, {
     Name = "${var.name_prefix}-users"
   })
@@ -129,6 +136,67 @@ resource "aws_cognito_user_pool_client" "mobile" {
     id_token      = "hours"
     refresh_token = "days"
   }
+}
+
+################################################################################
+# Pre-Token Generation Lambda — injects custom:role into access tokens
+################################################################################
+
+data "archive_file" "pre_token_generation" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/pre-token-generation/index.js"
+  output_path = "${path.module}/lambda/pre-token-generation/dist/pre-token-generation.zip"
+}
+
+resource "aws_iam_role" "pre_token_generation" {
+  name = "${var.name_prefix}-pre-token-gen"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = var.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "pre_token_generation_logs" {
+  role       = aws_iam_role.pre_token_generation.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_cloudwatch_log_group" "pre_token_generation" {
+  name              = "/aws/lambda/${var.name_prefix}-pre-token-gen"
+  retention_in_days = var.log_retention_days
+
+  tags = var.common_tags
+}
+
+resource "aws_lambda_function" "pre_token_generation" {
+  function_name    = "${var.name_prefix}-pre-token-gen"
+  description      = "Cognito Pre-Token Generation V2 — injects custom:role into access tokens"
+  runtime          = "nodejs20.x"
+  handler          = "index.handler"
+  filename         = data.archive_file.pre_token_generation.output_path
+  source_code_hash = data.archive_file.pre_token_generation.output_base64sha256
+  role             = aws_iam_role.pre_token_generation.arn
+  memory_size      = 128
+  timeout          = 5
+
+  depends_on = [aws_cloudwatch_log_group.pre_token_generation]
+
+  tags = var.common_tags
+}
+
+resource "aws_lambda_permission" "cognito_pre_token" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.pre_token_generation.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.main.arn
 }
 
 # Resource Server for API scopes

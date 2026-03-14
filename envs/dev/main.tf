@@ -722,10 +722,11 @@ module "s3_docs" {
 ################################################################################
 
 module "cognito" {
-  source      = "../../modules/cognito"
-  environment = local.environment
-  name_prefix = local.name_prefix
-  common_tags = local.common_tags
+  source             = "../../modules/cognito"
+  environment        = local.environment
+  name_prefix        = local.name_prefix
+  log_retention_days = var.log_retention_days
+  common_tags        = local.common_tags
 }
 
 ################################################################################

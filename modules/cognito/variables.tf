@@ -20,6 +20,12 @@ variable "web_logout_urls" {
   default     = ["http://localhost:3000"]
 }
 
+variable "log_retention_days" {
+  description = "CloudWatch log retention in days for the pre-token Lambda"
+  type        = number
+  default     = 7
+}
+
 variable "common_tags" {
   description = "Common tags"
   type        = map(string)
