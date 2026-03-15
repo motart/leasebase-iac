@@ -320,6 +320,32 @@ EXCEPTION WHEN OTHERS THEN
 END $$;
 
 --------------------------------------------------------------------------------
+-- TEST 6: Service roles SELECT on public."User" (requireAuth enrichment)
+--------------------------------------------------------------------------------
+
+DO $$
+DECLARE
+  svc_role text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='User') THEN
+    INSERT INTO _priv_results VALUES ('service_roles SELECT public.User', 'PASS (table not yet created)');
+    RETURN;
+  END IF;
+
+  FOREACH svc_role IN ARRAY ARRAY[
+    'property_user','lease_user','tenant_user','payments_user',
+    'maintenance_user','notification_user','document_user','reporting_user'
+  ]
+  LOOP
+    IF has_table_privilege(svc_role, 'public."User"', 'SELECT') THEN
+      INSERT INTO _priv_results VALUES (svc_role || ' SELECT public.User', 'PASS');
+    ELSE
+      INSERT INTO _priv_results VALUES (svc_role || ' SELECT public.User', 'FAIL: missing SELECT on public."User"');
+    END IF;
+  END LOOP;
+END $$;
+
+--------------------------------------------------------------------------------
 -- Results
 --------------------------------------------------------------------------------
 \echo ''
