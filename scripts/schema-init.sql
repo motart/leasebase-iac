@@ -291,12 +291,17 @@ GRANT SELECT ON ALL TABLES IN SCHEMA property_service TO tenant_user;
 ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA property_service GRANT SELECT ON TABLES TO tenant_user;
 
 -- Targeted write grants for invitation acceptance flow
+-- NOTE: public."User" writes are owned by auth-service (auth_user role).
+-- tenant-service creates TenantProfile, leases, and updates unit status.
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'lease_service' AND table_name = 'leases') THEN
     EXECUTE 'GRANT INSERT ON lease_service.leases TO tenant_user';
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'property_service' AND table_name = 'units') THEN
     EXECUTE 'GRANT UPDATE ON property_service.units TO tenant_user';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'TenantProfile') THEN
+    EXECUTE 'GRANT INSERT ON public."TenantProfile" TO tenant_user';
   END IF;
 END $$;
 
@@ -308,11 +313,21 @@ GRANT USAGE ON SCHEMA maintenance_service TO tenant_user;
 GRANT SELECT ON ALL TABLES IN SCHEMA maintenance_service TO tenant_user;
 ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA maintenance_service GRANT SELECT ON TABLES TO tenant_user;
 
--- maintenance_user reads: property_service
+-- maintenance_user reads: property_service, lease_service, public.TenantProfile
 \echo '  → maintenance_user cross-schema reads'
 GRANT USAGE ON SCHEMA property_service TO maintenance_user;
 GRANT SELECT ON ALL TABLES IN SCHEMA property_service TO maintenance_user;
 ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA property_service GRANT SELECT ON TABLES TO maintenance_user;
+
+GRANT USAGE ON SCHEMA lease_service TO maintenance_user;
+GRANT SELECT ON ALL TABLES IN SCHEMA lease_service TO maintenance_user;
+ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA lease_service GRANT SELECT ON TABLES TO maintenance_user;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'TenantProfile') THEN
+    EXECUTE 'GRANT SELECT ON public."TenantProfile" TO maintenance_user';
+  END IF;
+END $$;
 
 -- reporting_user reads: property_service, lease_service, tenant_service, payments_service, maintenance_service
 \echo '  → reporting_user cross-schema reads'
@@ -337,5 +352,39 @@ GRANT SELECT ON ALL TABLES IN SCHEMA maintenance_service TO reporting_user;
 ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA maintenance_service GRANT SELECT ON TABLES TO reporting_user;
 
 -- payments_user, notification_user, document_user: no cross-schema reads
+
+--------------------------------------------------------------------------------
+-- 4. Public-schema "User" table: SELECT for service-common requireAuth
+--    enrichment (resolves req.user.orgId from cognitoSub at middleware level).
+--    All service roles that use @leasebase/service-common v2.0.1+ need this.
+--------------------------------------------------------------------------------
+
+\echo '=== public.User read grants (requireAuth enrichment) ==='
+
+DO $$
+DECLARE
+  svc_role text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'User') THEN
+    RAISE NOTICE 'public."User" does not exist yet — skipping service-role grants';
+    RETURN;
+  END IF;
+
+  FOREACH svc_role IN ARRAY ARRAY[
+    'property_user',
+    'lease_user',
+    'tenant_user',
+    'payments_user',
+    'maintenance_user',
+    'notification_user',
+    'document_user',
+    'reporting_user'
+  ]
+  LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = svc_role) THEN
+      EXECUTE format('GRANT SELECT ON public."User" TO %I', svc_role);
+    END IF;
+  END LOOP;
+END $$;
 
 \echo '=== LeaseBase schema-init: complete ==='
