@@ -51,7 +51,7 @@ GRANT SELECT ON tenant_service._priv_test      TO property_user, lease_user, rep
 GRANT SELECT ON maintenance_service._priv_test TO property_user, tenant_user, reporting_user;
 GRANT SELECT ON payments_service._priv_test    TO property_user, tenant_user, reporting_user;
 GRANT SELECT ON document_service._priv_test    TO property_user;
-GRANT SELECT ON property_service._priv_test    TO tenant_user, maintenance_user, reporting_user;
+GRANT SELECT ON property_service._priv_test    TO lease_user, tenant_user, maintenance_user, reporting_user;
 
 \echo '  Running privilege tests...'
 
@@ -145,6 +145,18 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   RESET ROLE;
   INSERT INTO _priv_results VALUES ('tenant_user SELECT lease_service', 'FAIL: ' || SQLERRM);
+END $$;
+
+-- lease_user reading property_service (allowed)
+DO $$
+BEGIN
+  SET LOCAL ROLE lease_user;
+  PERFORM * FROM property_service._priv_test;
+  RESET ROLE;
+  INSERT INTO _priv_results VALUES ('lease_user SELECT property_service', 'PASS');
+EXCEPTION WHEN OTHERS THEN
+  RESET ROLE;
+  INSERT INTO _priv_results VALUES ('lease_user SELECT property_service', 'FAIL: ' || SQLERRM);
 END $$;
 
 -- maintenance_user reading property_service (allowed)

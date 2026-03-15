@@ -272,8 +272,12 @@ GRANT USAGE ON SCHEMA document_service TO property_user;
 GRANT SELECT ON ALL TABLES IN SCHEMA document_service TO property_user;
 ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA document_service GRANT SELECT ON TABLES TO property_user;
 
--- lease_user reads: tenant_service
+-- lease_user reads: property_service, tenant_service
 \echo '  → lease_user cross-schema reads'
+GRANT USAGE ON SCHEMA property_service TO lease_user;
+GRANT SELECT ON ALL TABLES IN SCHEMA property_service TO lease_user;
+ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA property_service GRANT SELECT ON TABLES TO lease_user;
+
 GRANT USAGE ON SCHEMA tenant_service TO lease_user;
 GRANT SELECT ON ALL TABLES IN SCHEMA tenant_service TO lease_user;
 ALTER DEFAULT PRIVILEGES FOR ROLE leasebase_admin IN SCHEMA tenant_service GRANT SELECT ON TABLES TO lease_user;

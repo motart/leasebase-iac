@@ -22,7 +22,7 @@ export async function seedPropertyService(pool: Pool): Promise<boolean> {
   const properties = [
     {
       id: DEMO_IDS.PROPERTY_CARRO,
-      org_id: DEMO_IDS.ORG,
+      organization_id: DEMO_IDS.ORG,
       name: 'Carro Drive 4-Plex',
       address_line1: '123 Carro Drive',
       address_line2: null,
@@ -39,7 +39,7 @@ export async function seedPropertyService(pool: Pool): Promise<boolean> {
     },
     {
       id: DEMO_IDS.PROPERTY_GIBBONS,
-      org_id: DEMO_IDS.ORG,
+      organization_id: DEMO_IDS.ORG,
       name: 'Gibbons Dr Duplex',
       address_line1: '456 Gibbons Drive',
       address_line2: null,
@@ -64,6 +64,7 @@ export async function seedPropertyService(pool: Pool): Promise<boolean> {
     // Carro Drive units
     {
       id: DEMO_IDS.UNIT_CARRO_101,
+      organization_id: DEMO_IDS.ORG,
       property_id: DEMO_IDS.PROPERTY_CARRO,
       unit_number: '101',
       floor: 1,
@@ -77,6 +78,7 @@ export async function seedPropertyService(pool: Pool): Promise<boolean> {
     },
     {
       id: DEMO_IDS.UNIT_CARRO_102,
+      organization_id: DEMO_IDS.ORG,
       property_id: DEMO_IDS.PROPERTY_CARRO,
       unit_number: '102',
       floor: 1,
@@ -90,6 +92,7 @@ export async function seedPropertyService(pool: Pool): Promise<boolean> {
     },
     {
       id: DEMO_IDS.UNIT_CARRO_201,
+      organization_id: DEMO_IDS.ORG,
       property_id: DEMO_IDS.PROPERTY_CARRO,
       unit_number: '201',
       floor: 2,
@@ -103,6 +106,7 @@ export async function seedPropertyService(pool: Pool): Promise<boolean> {
     },
     {
       id: DEMO_IDS.UNIT_CARRO_202,
+      organization_id: DEMO_IDS.ORG,
       property_id: DEMO_IDS.PROPERTY_CARRO,
       unit_number: '202',
       floor: 2,
@@ -117,6 +121,7 @@ export async function seedPropertyService(pool: Pool): Promise<boolean> {
     // Gibbons Dr units
     {
       id: DEMO_IDS.UNIT_GIBBONS_A,
+      organization_id: DEMO_IDS.ORG,
       property_id: DEMO_IDS.PROPERTY_GIBBONS,
       unit_number: 'A',
       floor: 1,
@@ -130,6 +135,7 @@ export async function seedPropertyService(pool: Pool): Promise<boolean> {
     },
     {
       id: DEMO_IDS.UNIT_GIBBONS_B,
+      organization_id: DEMO_IDS.ORG,
       property_id: DEMO_IDS.PROPERTY_GIBBONS,
       unit_number: 'B',
       floor: 1,

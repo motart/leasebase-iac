@@ -121,7 +121,7 @@ variable "service_db_config" {
       schema       = "lease_service"
       owns_schema  = true
       needs_db     = true
-      read_schemas = ["tenant_service"]
+      read_schemas = ["property_service", "tenant_service"]
     }
     tenant = {
       db_user      = "tenant_user"
