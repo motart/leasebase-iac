@@ -1,0 +1,66 @@
+name: Apply Dev (Core)
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'modules/**'
+      - 'envs/dev/**'
+      - '.github/workflows/apply-dev.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: terraform-apply-dev
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "1.6.0"
+  AWS_REGION: us-west-2
+
+jobs:
+  apply-core:
+    name: Plan & Apply Core (dev)
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: envs/dev
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=leasebase-tfstate-335021149718" \
+            -backend-config="key=v2/dev/terraform.tfstate" \
+            -backend-config="region=us-west-2" \
+            -backend-config="dynamodb_table=leasebase-terraform-locks" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Plan
+        working-directory: envs/dev
+        run: terraform plan -input=false -no-color -out=dev-core.tfplan
+
+      - name: Terraform Apply
+        working-directory: envs/dev
+        run: terraform apply -input=false -auto-approve dev-core.tfplan
+
+      - name: Upload Plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: applied-plan-core-dev
+          path: envs/dev/dev-core.tfplan
+          retention-days: 7

@@ -168,6 +168,11 @@ locals {
   internal_service_key = random_password.internal_service_key.result
 
   # ── Per-service extra environment variables ──────────────────────────────
+  # CANONICAL SOURCE OF TRUTH: All runtime environment variables for ECS
+  # services MUST be defined here (or in the ecs-service module base env).
+  # Do NOT set env vars in CI workflows, manual ECS console edits, or
+  # hardcoded config. Secrets use Secrets Manager via `service_secrets`.
+  # See also: local.cognito_env, local.redis_env (shared sets above).
   service_extra_env = {
     bff-gateway = concat(local.cognito_env, [
       { name = "INTERNAL_ALB_URL", value = "http://${module.alb.alb_dns_name}" },
@@ -563,6 +568,7 @@ module "services" {
   log_retention_days    = var.log_retention_days
   execution_role_arn    = aws_iam_role.ecs_execution.arn
   ecr_force_delete      = true
+  image_tag             = lookup(var.service_image_tags, each.key, "latest")
   extra_environment     = lookup(local.service_extra_env, each.key, [])
   secrets               = lookup(local.service_secrets, each.key, [])
   extra_iam_statements  = lookup(local.service_extra_iam, each.key, [])

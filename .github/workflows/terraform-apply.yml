@@ -1,6 +1,16 @@
 name: Terraform Apply
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Enforced deployment path:
+#   PR → terraform plan (plan-dev.yml) → merge to main → this workflow → apply
+# Manual dispatch is kept as a break-glass mechanism.
+# ─────────────────────────────────────────────────────────────────────────────
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'modules/**'
+      - 'envs/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -18,18 +28,24 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  group: terraform-apply-${{ inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
 permissions:
   id-token: write
   contents: read
 
 env:
   TF_VERSION: "1.6.0"
+  # On push to main, default to dev. Manual dispatch uses the input.
+  TARGET_ENV: ${{ inputs.environment || 'dev' }}
 
 jobs:
   plan:
-    name: Plan (${{ inputs.environment }})
+    name: Plan (${{ inputs.environment || 'dev' }})
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment || 'dev' }}
     outputs:
       has_changes: ${{ steps.plan.outputs.has_changes }}
     steps:
@@ -43,27 +59,31 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: us-west-2
       - name: Terraform Init
-        working-directory: envs/${{ inputs.environment }}
+        working-directory: envs/${{ env.TARGET_ENV }}
         run: terraform init
       - name: Terraform Plan
         id: plan
-        working-directory: envs/${{ inputs.environment }}
+        working-directory: envs/${{ env.TARGET_ENV }}
         run: |
-          terraform plan -no-color -detailed-exitcode -out=${{ inputs.environment }}.tfplan || EC=$?
+          terraform plan -no-color -detailed-exitcode -out=${{ env.TARGET_ENV }}.tfplan || EC=$?
           if [ "$EC" = "2" ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
           else
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
+      - name: Fail on unexpected drift
+        if: steps.plan.outputs.has_changes == 'true' && github.event_name == 'push'
+        run: |
+          echo "::warning::Terraform detected changes on merge. Applying automatically."
       - name: Upload Plan
         if: steps.plan.outputs.has_changes == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-${{ inputs.environment }}
-          path: envs/${{ inputs.environment }}/${{ inputs.environment }}.tfplan
+          name: tfplan-${{ env.TARGET_ENV }}
+          path: envs/${{ env.TARGET_ENV }}/${{ env.TARGET_ENV }}.tfplan
 
   approve:
-    name: Approve (${{ inputs.environment }})
+    name: Approve (${{ inputs.environment || 'dev' }})
     needs: plan
     if: needs.plan.outputs.has_changes == 'true' && inputs.environment == 'prod'
     runs-on: ubuntu-latest
@@ -72,14 +92,14 @@ jobs:
       - run: echo "Approved for production deployment"
 
   apply:
-    name: Apply (${{ inputs.environment }})
+    name: Apply (${{ inputs.environment || 'dev' }})
     needs: [plan, approve]
     if: |
       always() &&
       needs.plan.outputs.has_changes == 'true' &&
-      (needs.approve.result == 'success' || inputs.environment != 'prod')
+      (needs.approve.result == 'success' || (inputs.environment || 'dev') != 'prod')
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment || 'dev' }}
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
@@ -93,11 +113,11 @@ jobs:
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-${{ inputs.environment }}
-          path: envs/${{ inputs.environment }}
+          name: tfplan-${{ env.TARGET_ENV }}
+          path: envs/${{ env.TARGET_ENV }}
       - name: Terraform Init
-        working-directory: envs/${{ inputs.environment }}
+        working-directory: envs/${{ env.TARGET_ENV }}
         run: terraform init
       - name: Terraform Apply
-        working-directory: envs/${{ inputs.environment }}
-        run: terraform apply -auto-approve ${{ inputs.environment }}.tfplan
+        working-directory: envs/${{ env.TARGET_ENV }}
+        run: terraform apply -auto-approve ${{ env.TARGET_ENV }}.tfplan

@@ -155,11 +155,29 @@ jobs:
           retention-days: 5
 
   # --------------------------------------------------------------------------
+  # Drift check — reject mutable image tags in running ECS tasks
+  # --------------------------------------------------------------------------
+  drift-check:
+    name: Drift Check (mutable tags)
+    needs: [fmt-check]
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Check for mutable image tags
+        run: bash ops/scripts/check-mutable-tags.sh leasebase-dev-v2-cluster
+
+  # --------------------------------------------------------------------------
   # PR Comment summary
   # --------------------------------------------------------------------------
   comment:
     name: PR Comment
-    needs: [plan-core, plan-automation]
+    needs: [plan-core, plan-automation, drift-check]
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:

@@ -1,0 +1,51 @@
+name: ECS Runtime Drift Check
+
+on:
+  schedule:
+    # Daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      cluster:
+        description: 'ECS cluster name'
+        required: false
+        type: string
+        default: 'leasebase-dev-v2-cluster'
+      verbose:
+        description: 'Show detailed env var output'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-west-2
+
+jobs:
+  drift-check:
+    name: Check ECS Runtime Drift
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run drift detection
+        env:
+          CLUSTER: ${{ inputs.cluster || 'leasebase-dev-v2-cluster' }}
+          VERBOSE: ${{ inputs.verbose || 'false' }}
+        run: |
+          chmod +x scripts/check-runtime-drift.sh
+          bash scripts/check-runtime-drift.sh
+
+      - name: Annotate on drift
+        if: failure()
+        run: echo "::error::ECS runtime drift detected. Review the drift check output above."

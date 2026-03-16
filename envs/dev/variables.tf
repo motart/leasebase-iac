@@ -87,6 +87,12 @@ variable "log_retention_days" {
   default = 7
 }
 
+variable "service_image_tags" {
+  description = "Per-service Docker image tags (Git SHA). CI passes the deployed service's SHA; services not set here fall back to the seed tag."
+  type        = map(string)
+  default     = {}
+}
+
 # RDS Aurora
 variable "db_name" {
   type    = string

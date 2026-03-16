@@ -165,3 +165,9 @@ variable "register_with_alb" {
   default     = true
 }
 
+variable "image_tag" {
+  description = "Docker image tag to deploy (immutable Git SHA). CI passes the commit SHA; Terraform uses it for the seed task definition."
+  type        = string
+  default     = "latest"
+}
+

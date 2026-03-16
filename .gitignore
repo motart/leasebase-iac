@@ -27,3 +27,5 @@ legacy-v1/**/.terraform/
 legacy-v1/**/*.tfstate
 legacy-v1/**/*.tfplan
 modules/cognito/lambda/pre-token-generation/dist/
+*.tfplan
+tfplan
