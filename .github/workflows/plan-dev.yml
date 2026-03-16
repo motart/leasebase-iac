@@ -95,7 +95,13 @@ jobs:
           aws-region: us-west-2
       - name: Terraform Init
         working-directory: envs/dev
-        run: terraform init -input=false
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=leasebase-tfstate-335021149718" \
+            -backend-config="key=v2/dev/terraform.tfstate" \
+            -backend-config="region=us-west-2" \
+            -backend-config="dynamodb_table=leasebase-terraform-locks" \
+            -backend-config="encrypt=true"
       - name: Terraform Plan
         working-directory: envs/dev
         run: terraform plan -no-color -input=false -out=dev-core.tfplan
