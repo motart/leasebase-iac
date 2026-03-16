@@ -185,6 +185,8 @@ locals {
       { name = "INTERNAL_SERVICE_KEY", value = local.internal_service_key },
       { name = "AUTH_SERVICE_URL", value = "http://${module.alb.alb_dns_name}" },
       { name = "APP_BASE_URL", value = "https://${var.domain_name}" },
+      { name = "SES_FROM_EMAIL", value = "noreply@${var.env_subdomain_prefix != "" ? "${var.env_subdomain_prefix}.${var.root_domain_name}" : var.root_domain_name}" },
+      { name = "SES_REGION", value = var.aws_region },
     ])
     maintenance-service = concat(local.cognito_env, local.redis_env)
     payments-service    = concat(local.cognito_env, local.redis_env)
@@ -262,6 +264,14 @@ locals {
         Effect   = "Allow"
         Action   = ["sqs:SendMessage"]
         Resource = [module.sqs.queue_arns["reporting-jobs"]]
+      },
+    ]
+    tenant-service = [
+      {
+        Sid      = "SESSendInvitationEmail"
+        Effect   = "Allow"
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Resource = ["*"]
       },
     ]
   }
